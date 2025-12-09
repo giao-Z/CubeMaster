@@ -39,12 +39,20 @@ export interface ScanProgress {
   completedFaces: Face[];
 }
 
+export interface LearnSection {
+  title: string;
+  content: string;
+  algorithm?: string;
+  image?: string; // Placeholder for potential image assets
+}
+
 export interface LearnTopic {
   id: string;
   title: string;
   description: string;
   level: 'Beginner' | 'Intermediate' | 'Advanced';
   duration: string;
+  sections?: LearnSection[];
 }
 
 export type Language = 'en' | 'zh' | 'es' | 'fr' | 'ru' | 'ar';

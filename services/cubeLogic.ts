@@ -37,8 +37,6 @@ export const rotateFace = (currentState: CubeState, face: Face, clockwise: boole
 
   // 2. Permute Adjacent Faces
   // Definitions of indices for adjacent strips for each face
-  // Simplified standard orientation assumption:
-  // F (Front): U-Bottom, R-Left, D-Top, L-Right
   
   // Helper to get row indices
   const getRowIndices = (rowIndex: number) => {
@@ -52,61 +50,29 @@ export const rotateFace = (currentState: CubeState, face: Face, clockwise: boole
 
   let uStrip: number[] = [], dStrip: number[] = [], lStrip: number[] = [], rStrip: number[] = [], fStrip: number[] = [], bStrip: number[] = [];
   
-  // Define strips for each rotation case
-  // Note: Directions must be consistent with standard cube notation
-  
   switch (face) {
     case Face.F:
-      // U Bottom Row, R Left Col, D Top Row, L Right Col
-      uStrip = getRowIndices(size - 1);
+      // U Front Row (0), R Left Col (0), D Front Row (size-1), L Right Col (size-1)
+      uStrip = getRowIndices(0);
       rStrip = getColIndices(0);
-      dStrip = getRowIndices(0);
+      dStrip = getRowIndices(size - 1);
       lStrip = getColIndices(size - 1);
       
       if (clockwise) {
-        // U -> R, R -> D, D -> L, L -> U
-        const temp = uStrip.map(i => currentState[Face.U][i]);
-        // U -> R (reversed order logic depends on face orientation, standard model mapping:)
-        // U(left-to-right) goes to R(top-to-bottom)
-        lStrip.slice().reverse().forEach((idx, i) => nextState[Face.U][uStrip[i]] = currentState[Face.L][idx]);
-        dStrip.slice().reverse().forEach((idx, i) => nextState[Face.L][lStrip[i]] = currentState[Face.D][idx]);
-        rStrip.forEach((idx, i) => nextState[Face.D][dStrip[i]] = currentState[Face.R][idx]); // D gets R (normal?)
-        // Standard F Move:
-        // U(6,7,8) -> R(0,3,6)
-        // R(0,3,6) -> D(2,1,0) (Reversed relative to D index?)
-        // Let's stick to a cyclic permutation that works for standard unfolding
-        // U(row-last) -> R(col-first)
-        // R(col-first) -> D(row-first-reversed)
-        // D(row-first) -> L(col-last-reversed)
-        // L(col-last) -> U(row-last)
+        // U(row-first) -> R(col-first)
+        // R(col-first) -> D(row-last-reversed)
+        // D(row-last) -> L(col-last-reversed) ? No D->L is direct in loop
         
-        // Let's implement simpler cycle reading values then writing
         const uVals = uStrip.map(i => currentState[Face.U][i]);
         const rVals = rStrip.map(i => currentState[Face.R][i]);
         const dVals = dStrip.map(i => currentState[Face.D][i]);
         const lVals = lStrip.map(i => currentState[Face.L][i]);
 
-        // F Clockwise
-        // U -> R
-        rStrip.forEach((idx, i) => nextState[Face.R][idx] = uVals[i]);
-        // R -> D (Reversed)
-        dStrip.forEach((idx, i) => nextState[Face.D][idx] = rVals[size - 1 - i]);
-        // D -> L 
-        lStrip.forEach((idx, i) => nextState[Face.L][idx] = dVals[size - 1 - i]); // Wait, geometric mapping
-        // L -> U (Reversed? No, L is Up-Down, U is Left-Right)
-        uStrip.forEach((idx, i) => nextState[Face.U][idx] = lVals[size - 1 - i]); // L goes to U
-        
-        // Correction: Standard F move
-        // Top Face (U): 6 7 8 -> Right Face (R): 0 3 6
-        // Right Face (R): 0 3 6 -> Bottom Face (D): 2 1 0
-        // Bottom Face (D): 2 1 0 -> Left Face (L): 8 5 2
-        // Left Face (L): 8 5 2 -> Top Face (U): 6 7 8
-        
         for(let i=0; i<size; i++) {
-           nextState[Face.R][rStrip[i]] = uVals[i]; // U -> R
-           nextState[Face.D][dStrip[i]] = rVals[size - 1 - i]; // R -> D (rev)
-           nextState[Face.L][lStrip[i]] = dVals[i]; // D -> L (Actually D is 2,1,0 -> L 8,5,2 so D[size-1-i] -> L[i])
-           nextState[Face.U][uStrip[i]] = lVals[size - 1 - i]; // L -> U
+           nextState[Face.R][rStrip[i]] = uVals[i]; // U -> R (Direct)
+           nextState[Face.D][dStrip[i]] = rVals[size - 1 - i]; // R -> D (Reversed)
+           nextState[Face.L][lStrip[i]] = dVals[i]; // D -> L (Direct)
+           nextState[Face.U][uStrip[i]] = lVals[size - 1 - i]; // L -> U (Reversed)
         }
       } else {
         // Counter Clockwise
@@ -126,10 +92,10 @@ export const rotateFace = (currentState: CubeState, face: Face, clockwise: boole
 
     case Face.B:
        // B is opposite of F. 
-       // U Top Row, L Left Col, D Bottom Row, R Right Col
-       uStrip = getRowIndices(0);
+       // U Back Row (size-1), L Left Col (0), D Back Row (0), R Right Col (size-1)
+       uStrip = getRowIndices(size - 1);
        lStrip = getColIndices(0);
-       dStrip = getRowIndices(size - 1);
+       dStrip = getRowIndices(0);
        rStrip = getColIndices(size - 1);
        
        if (clockwise) {
@@ -139,10 +105,10 @@ export const rotateFace = (currentState: CubeState, face: Face, clockwise: boole
          const rVals = rStrip.map(i => currentState[Face.R][i]);
          
          for(let i=0; i<size; i++) {
-            nextState[Face.L][lStrip[i]] = uVals[size - 1 - i];
-            nextState[Face.D][dStrip[i]] = lVals[i];
-            nextState[Face.R][rStrip[i]] = dVals[size - 1 - i];
-            nextState[Face.U][uStrip[i]] = rVals[i];
+            nextState[Face.L][lStrip[i]] = uVals[size - 1 - i]; // U -> L (Reversed)
+            nextState[Face.D][dStrip[i]] = lVals[i];            // L -> D (Direct)
+            nextState[Face.R][rStrip[i]] = dVals[size - 1 - i]; // D -> R (Reversed)
+            nextState[Face.U][uStrip[i]] = rVals[i];            // R -> U (Direct)
          }
        } else {
          const uVals = uStrip.map(i => currentState[Face.U][i]);
@@ -214,12 +180,10 @@ export const rotateFace = (currentState: CubeState, face: Face, clockwise: boole
       uStrip = getColIndices(0);
       fStrip = getColIndices(0);
       dStrip = getColIndices(0);
-      bStrip = getColIndices(size - 1); // Back is reversed horizontally relative to front loop? 
-      // Vertical strips are consistent usually.
+      bStrip = getColIndices(size - 1); 
       
       if (clockwise) {
         // U -> F -> D -> B -> U
-        // B needs inversion because it's on the back
         const uVals = uStrip.map(i => currentState[Face.U][i]);
         const fVals = fStrip.map(i => currentState[Face.F][i]);
         const dVals = dStrip.map(i => currentState[Face.D][i]);

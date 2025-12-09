@@ -1,28 +1,112 @@
-import React, { useMemo } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { useMemo, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stage, Center } from '@react-three/drei';
 import { CubeState, Face, CubeSize } from '../types';
 import { COLOR_HEX } from '../constants';
+import * as THREE from 'three';
+
+// Add type definitions for React Three Fiber elements
+// Augment both global and module-scoped JSX namespaces to ensure compatibility
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      mesh: any;
+      boxGeometry: any;
+      meshStandardMaterial: any;
+      group: any;
+    }
+  }
+}
+
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      mesh: any;
+      boxGeometry: any;
+      meshStandardMaterial: any;
+      group: any;
+    }
+  }
+}
 
 interface Cube3DProps {
   state: CubeState;
   size: CubeSize;
   interactive?: boolean;
+  pendingMove?: { face: Face, clockwise: boolean } | null;
 }
 
-const CubePiece: React.FC<{ position: [number, number, number], colors: string[], scale: number }> = ({ position, colors, scale }) => {
+const CubePiece: React.FC<{ 
+  position: [number, number, number], 
+  colors: string[], 
+  scale: number,
+  isHighlighted?: boolean,
+  highlightFace?: Face | null
+}> = ({ position, colors, scale, isHighlighted, highlightFace }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  
   // colors array order: right, left, top, bottom, front, back
+  
+  useFrame((state) => {
+    if (!meshRef.current) return;
+    
+    // Breathing Animation for highlighted pieces
+    const t = state.clock.getElapsedTime();
+    let breathe = 1;
+    
+    // Pop out animation logic
+    // We modify the mesh's position relative to its group (which holds the base position)
+    // Actually, `position` prop is passed to group. Mesh is at 0,0,0 relative to group.
+    
+    if (isHighlighted) {
+      // 1. Breathe Scale
+      breathe = 1 + Math.sin(t * 10) * 0.05;
+      
+      // 2. Pop Direction
+      // We need to shift the piece slightly in the direction of the face normal
+      const popDist = 0.15;
+      let popX = 0, popY = 0, popZ = 0;
+      
+      if (highlightFace === Face.U) popY = popDist;
+      if (highlightFace === Face.D) popY = -popDist;
+      if (highlightFace === Face.R) popX = popDist;
+      if (highlightFace === Face.L) popX = -popDist;
+      if (highlightFace === Face.F) popZ = popDist;
+      if (highlightFace === Face.B) popZ = -popDist;
+      
+      meshRef.current.position.set(popX, popY, popZ);
+    } else {
+      meshRef.current.position.set(0, 0, 0);
+    }
+    
+    meshRef.current.scale.setScalar(scale * breathe);
+  });
+
   return (
-    <mesh position={position}>
-      <boxGeometry args={[scale, scale, scale]} />
-      {colors.map((c, i) => (
-        <meshStandardMaterial key={i} attach={`material-${i}`} color={c} roughness={0.1} metalness={0.1} />
-      ))}
-    </mesh>
+    <group position={position}>
+      <mesh ref={meshRef}>
+        <boxGeometry args={[1, 1, 1]} />
+        {colors.map((c, i) => (
+          <meshStandardMaterial 
+            key={i} 
+            attach={`material-${i}`} 
+            color={c} 
+            roughness={0.1} 
+            metalness={0.1}
+            emissive={isHighlighted ? c : '#000000'}
+            emissiveIntensity={isHighlighted ? 0.3 : 0}
+          />
+        ))}
+      </mesh>
+    </group>
   );
 };
 
-const CubeModel: React.FC<{ state: CubeState, size: CubeSize }> = ({ state, size }) => {
+const CubeModel: React.FC<{ 
+  state: CubeState, 
+  size: CubeSize, 
+  pendingMove?: { face: Face, clockwise: boolean } | null 
+}> = ({ state, size, pendingMove }) => {
   // Helper to get color code
   const getC = (face: Face, idx: number): string => {
     const faceColors = state[face];
@@ -55,16 +139,23 @@ const CubeModel: React.FC<{ state: CubeState, size: CubeSize }> = ({ state, size
 
           // Optimization: Skip internal cubes
           if (!isRight && !isLeft && !isTop && !isBottom && !isFront && !isBack) continue;
+          
+          // Check if this piece belongs to the pending move face
+          let isHighlighted = false;
+          if (pendingMove) {
+            if (pendingMove.face === Face.U && isTop) isHighlighted = true;
+            if (pendingMove.face === Face.D && isBottom) isHighlighted = true;
+            if (pendingMove.face === Face.R && isRight) isHighlighted = true;
+            if (pendingMove.face === Face.L && isLeft) isHighlighted = true;
+            if (pendingMove.face === Face.F && isFront) isHighlighted = true;
+            if (pendingMove.face === Face.B && isBack) isHighlighted = true;
+          }
 
           // Default Black
           const cubeColors = ['#111', '#111', '#111', '#111', '#111', '#111'];
 
           // Right (Face R)
           if (isRight) {
-             // Map 3D coords to 2D face grid
-             // For R face: Y goes top to bottom, Z goes front to back
-             // We need to map (y,z) to index 0..size*size-1
-             // 0,0 is Top-Left of the face
              const row = (size - 1) - y;
              const col = (size - 1) - z;
              cubeColors[0] = getC(Face.R, row * size + col);
@@ -110,29 +201,31 @@ const CubeModel: React.FC<{ state: CubeState, size: CubeSize }> = ({ state, size
               key={`${x}-${y}-${z}`} 
               position={[posX, posY, posZ]} 
               colors={cubeColors} 
-              scale={pieceSize} 
+              scale={pieceSize}
+              isHighlighted={isHighlighted}
+              highlightFace={pendingMove?.face}
             />
           );
         }
       }
     }
     return pieces;
-  }, [state, size]);
+  }, [state, size, pendingMove]);
 
   return <group>{cubes}</group>;
 };
 
-const Cube3D: React.FC<Cube3DProps> = ({ state, size, interactive = true }) => {
+const Cube3D: React.FC<Cube3DProps> = ({ state, size, interactive = true, pendingMove }) => {
   return (
     <div className="w-full h-full">
       <Canvas shadows dpr={[1, 2]} camera={{ position: [size * 1.5, size * 1.5, size * 1.5], fov: 45 }}>
         <Stage environment="city" intensity={0.5} adjustCamera={false}>
           <Center>
-            <CubeModel state={state} size={size} />
+            <CubeModel state={state} size={size} pendingMove={pendingMove} />
           </Center>
         </Stage>
         <OrbitControls 
-          autoRotate={interactive} 
+          autoRotate={interactive && !pendingMove} // Stop rotation if selecting a move
           autoRotateSpeed={1} 
           enableZoom={true} 
           enablePan={false}

@@ -25,6 +25,33 @@
             },
             animation: {
               'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'swipe-up': 'swipe-up 2s infinite',
+              'swipe-down': 'swipe-down 2s infinite',
+              'swipe-left': 'swipe-left 2s infinite',
+              'swipe-right': 'swipe-right 2s infinite',
+              'fade-in': 'fade-in 0.3s ease-out forwards',
+            },
+            keyframes: {
+              'swipe-up': {
+                '0%, 100%': { transform: 'translateY(10px)', opacity: '0' },
+                '50%': { transform: 'translateY(-10px)', opacity: '1' },
+              },
+              'swipe-down': {
+                '0%, 100%': { transform: 'translateY(-10px)', opacity: '0' },
+                '50%': { transform: 'translateY(10px)', opacity: '1' },
+              },
+              'swipe-left': {
+                '0%, 100%': { transform: 'translateX(10px)', opacity: '0' },
+                '50%': { transform: 'translateX(-10px)', opacity: '1' },
+              },
+              'swipe-right': {
+                '0%, 100%': { transform: 'translateX(-10px)', opacity: '0' },
+                '50%': { transform: 'translateX(10px)', opacity: '1' },
+              },
+              'fade-in': {
+                '0%': { opacity: '0', transform: 'scale(0.9)' },
+                '100%': { opacity: '1', transform: 'scale(1)' },
+              }
             }
           },
         },
@@ -46,7 +73,8 @@
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0",
     "@react-three/drei": "https://aistudiocdn.com/@react-three/drei@^10.7.7",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
-    "@react-three/fiber": "https://aistudiocdn.com/@react-three/fiber@^9.4.2"
+    "@react-three/fiber": "https://aistudiocdn.com/@react-three/fiber@^9.4.2",
+    "three": "https://aistudiocdn.com/three@^0.181.2"
   }
 }
 </script>

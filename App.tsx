@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { 
   RotateCcw, ChevronRight, ChevronLeft, CheckCircle, 
   AlertTriangle, ArrowRight, Settings, BookOpen, 
-  MonitorPlay, Zap, Globe, Hand, MousePointer2
+  MonitorPlay, Zap, Globe, Hand, MousePointer2, HelpCircle, X, Info,
+  ChevronDown
 } from 'lucide-react';
 import Scanner from './components/Scanner';
 import Cube3D from './components/Cube3D';
 import GestureControl from './components/GestureControl';
 import { getSolveSteps } from './services/geminiService';
 import { rotateFace } from './services/cubeLogic';
-import { AppMode, CubeState, Face, FaceGrid, SolveStep, CubeSize, Language, ControlMode } from './types';
-import { FACE_ORDER, FACE_NAMES, getInitialCubeState, LEARN_TOPICS, LANGUAGES, TRANSLATIONS } from './constants';
+import { AppMode, CubeState, Face, FaceGrid, SolveStep, CubeSize, Language, ControlMode, LearnTopic } from './types';
+import { FACE_ORDER, FACE_NAMES, getInitialCubeState, LEARN_TOPICS_DATA, LANGUAGES, TRANSLATIONS, MOVE_DESCRIPTIONS_DATA } from './constants';
 
 const App: React.FC = () => {
   // Global State
@@ -27,9 +28,17 @@ const App: React.FC = () => {
 
   // Free Play State
   const [controlMode, setControlMode] = useState<ControlMode>(ControlMode.TOUCH);
+  const [showControlGuide, setShowControlGuide] = useState(false);
+  const [showGestureTutorial, setShowGestureTutorial] = useState(false);
+  const [pendingMove, setPendingMove] = useState<{face: Face, clockwise: boolean} | null>(null);
+
+  // Learn State
+  const [selectedTopic, setSelectedTopic] = useState<LearnTopic | null>(null);
 
   const currentScanFace = FACE_ORDER[scanIndex];
   const t = TRANSLATIONS[language];
+  const currentMoveDescriptions = MOVE_DESCRIPTIONS_DATA[language];
+  const currentLearnTopics = LEARN_TOPICS_DATA[language];
 
   // Logic
   const initMode = (targetMode: AppMode, size: CubeSize = 3) => {
@@ -39,6 +48,8 @@ const App: React.FC = () => {
     setSolveSteps([]);
     setError(null);
     setMode(targetMode);
+    setSelectedTopic(null);
+    setPendingMove(null);
   };
 
   const handleFaceCaptured = (colors: FaceGrid) => {
@@ -74,14 +85,39 @@ const App: React.FC = () => {
     setCubeState(prevState => rotateFace(prevState, face, clockwise, cubeSize));
   };
 
+  const handleFreePlayAction = (face: Face, clockwise: boolean) => {
+    // 2-Step Confirmation Logic
+    if (pendingMove && pendingMove.face === face && pendingMove.clockwise === clockwise) {
+      // Confirmed: Execute and Clear
+      executeMove(face, clockwise);
+      setPendingMove(null);
+    } else {
+      // First click: Select/Preview
+      setPendingMove({ face, clockwise });
+    }
+  };
+
   const handleGesture = (direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
-    // Map gestures to moves (Simplified mapping for demo)
     // Left/Right -> Rotate U Face
     // Up/Down -> Rotate R Face
-    if (direction === 'LEFT') executeMove(Face.U, true);
-    if (direction === 'RIGHT') executeMove(Face.U, false);
-    if (direction === 'UP') executeMove(Face.R, true);
-    if (direction === 'DOWN') executeMove(Face.R, false);
+    let face: Face | null = null;
+    let cw = true;
+
+    if (direction === 'LEFT') { face = Face.U; cw = true; }
+    if (direction === 'RIGHT') { face = Face.U; cw = false; }
+    if (direction === 'UP') { face = Face.R; cw = true; }
+    if (direction === 'DOWN') { face = Face.R; cw = false; }
+
+    if (face) {
+      // For gestures, we can keep the 2-step logic or make it instant.
+      // To match the requested feature "Free Play... click U...", let's apply it generally.
+      // However, gestures might feel laggy if double swipe is needed. 
+      // Let's make gesture instant for better UX, as the user specifically mentioned "Click U" (Touch) for the breathing effect.
+      // Or, we can trigger the preview on first swipe? 
+      // Let's stick to instant for gestures to avoid frustration, as "hovering" with hand is hard.
+      executeMove(face, cw);
+      setPendingMove(null); // Clear any pending touch selection
+    }
   };
 
   // --- RENDERERS ---
@@ -96,7 +132,7 @@ const App: React.FC = () => {
         <p className="text-slate-400 text-sm">{t.subTitle}</p>
         
         {/* Language Selector */}
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 z-50">
           <div className="flex gap-2 bg-slate-900 p-1 rounded-full border border-slate-800">
              {LANGUAGES.map(lang => (
                <button 
@@ -349,32 +385,170 @@ const App: React.FC = () => {
     );
   };
 
-  const renderLearn = () => (
-    <div className="min-h-screen bg-slate-950 text-white p-6">
-      <div className="flex items-center gap-4 mb-8">
-        <button onClick={() => setMode(AppMode.HOME)} className="p-2 bg-slate-900 rounded-full hover:bg-slate-800">
-          <ChevronLeft />
-        </button>
-        <h2 className="text-2xl font-bold">{t.learn}</h2>
-      </div>
-
-      <div className="space-y-4">
-        {LEARN_TOPICS.map((topic) => (
-          <div key={topic.id} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl hover:border-slate-600 transition cursor-pointer group">
-            <div className="flex justify-between items-start mb-2">
-              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                topic.level === 'Beginner' ? 'bg-green-500/20 text-green-400' :
-                topic.level === 'Intermediate' ? 'bg-yellow-500/20 text-yellow-400' :
-                'bg-red-500/20 text-red-400'
-              }`}>
-                {topic.level}
-              </span>
-              <span className="text-slate-500 text-xs">{topic.duration}</span>
+  const renderLearn = () => {
+    // Detail View
+    if (selectedTopic) {
+      return (
+        <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+          <div className="p-6 pb-4 border-b border-white/10 sticky top-0 bg-slate-950/90 backdrop-blur z-30">
+            <button 
+              onClick={() => setSelectedTopic(null)} 
+              className="flex items-center gap-1 text-slate-400 hover:text-white mb-3 text-sm font-medium"
+            >
+              <ChevronLeft size={16} /> {t.learn}
+            </button>
+            <h1 className="text-2xl font-bold mb-2 leading-tight">{selectedTopic.title}</h1>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+               <span className="bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded uppercase font-bold tracking-wide">{selectedTopic.level}</span>
+               <span>•</span>
+               <span>{selectedTopic.duration}</span>
             </div>
-            <h3 className="text-lg font-bold mb-1 group-hover:text-blue-400 transition">{topic.title}</h3>
-            <p className="text-sm text-slate-400">{topic.description}</p>
           </div>
-        ))}
+          
+          <div className="flex-1 overflow-y-auto p-6 space-y-8 max-w-2xl mx-auto w-full">
+             {(!selectedTopic.sections || selectedTopic.sections.length === 0) ? (
+                <div className="text-center text-slate-500 py-20">
+                   <p>Content coming soon...</p>
+                </div>
+             ) : (
+               selectedTopic.sections.map((section, idx) => (
+                 <div key={idx} className="bg-slate-900/50 p-6 rounded-2xl border border-white/5 relative">
+                    <div className="absolute top-6 left-0 w-1 h-8 bg-blue-500 rounded-r-full" />
+                    <h3 className="text-lg font-bold text-white mb-3 ml-2">
+                       {section.title}
+                    </h3>
+                    <p className="text-slate-300 leading-relaxed mb-4 text-sm whitespace-pre-line">{section.content}</p>
+                    {section.algorithm && (
+                       <div className="bg-black/40 p-4 rounded-xl font-mono text-center border border-white/5 shadow-inner">
+                          <span className="text-blue-400 block text-[10px] uppercase tracking-widest mb-1 font-bold">Algorithm</span>
+                          <span className="text-lg tracking-wide font-bold text-white whitespace-pre-line">{section.algorithm}</span>
+                       </div>
+                    )}
+                 </div>
+               ))
+             )}
+             <div className="h-20" /> {/* Bottom spacer */}
+          </div>
+        </div>
+      );
+    }
+
+    // List View
+    return (
+      <div className="min-h-screen bg-slate-950 text-white p-6">
+        <div className="flex items-center gap-4 mb-8">
+          <button onClick={() => setMode(AppMode.HOME)} className="p-2 bg-slate-900 rounded-full hover:bg-slate-800 border border-slate-800">
+            <ChevronLeft size={20} />
+          </button>
+          <h2 className="text-2xl font-bold">{t.learn}</h2>
+        </div>
+
+        <div className="space-y-4">
+          {currentLearnTopics.map((topic) => (
+            <div 
+              key={topic.id} 
+              onClick={() => setSelectedTopic(topic)}
+              className="bg-slate-900 border border-slate-800 p-5 rounded-2xl hover:border-slate-600 transition cursor-pointer group hover:bg-slate-800 relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition">
+                 <BookOpen size={64} />
+              </div>
+              <div className="flex justify-between items-start mb-2 relative z-10">
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                  topic.level === 'Beginner' ? 'bg-green-500/20 text-green-400' :
+                  topic.level === 'Intermediate' ? 'bg-yellow-500/20 text-yellow-400' :
+                  'bg-red-500/20 text-red-400'
+                }`}>
+                  {topic.level}
+                </span>
+                <span className="text-slate-500 text-xs">{topic.duration}</span>
+              </div>
+              <h3 className="text-lg font-bold mb-1 group-hover:text-blue-400 transition relative z-10">{topic.title}</h3>
+              <p className="text-sm text-slate-400 relative z-10">{topic.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderGestureTutorial = () => (
+    <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+      <div className="bg-slate-900 border border-white/10 p-6 rounded-3xl max-w-sm w-full shadow-2xl">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-white">{t.gestureTutorialTitle}</h3>
+          <button onClick={() => setShowGestureTutorial(false)} className="text-slate-400 hover:text-white">
+            <X size={24} />
+          </button>
+        </div>
+        
+        <p className="text-sm text-slate-400 mb-8">{t.gestureTutorialDesc}</p>
+
+        <div className="grid grid-cols-2 gap-6 mb-8">
+          {/* Gesture Item: UP */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-20 h-20 bg-slate-800 rounded-xl flex items-center justify-center relative overflow-hidden">
+               <Hand className="text-blue-400 animate-swipe-up" size={32} />
+               <div className="absolute inset-x-0 bottom-2 text-[10px] text-slate-500 font-mono">SWIPE UP</div>
+            </div>
+            <div className="text-xs text-white font-bold flex items-center gap-1">
+              <RotateCcw size={12} className="text-red-400 rotate-90" />
+              R (Right Up)
+            </div>
+          </div>
+
+          {/* Gesture Item: DOWN */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-20 h-20 bg-slate-800 rounded-xl flex items-center justify-center relative overflow-hidden">
+               <Hand className="text-blue-400 animate-swipe-down" size={32} />
+               <div className="absolute inset-x-0 top-2 text-[10px] text-slate-500 font-mono">SWIPE DOWN</div>
+            </div>
+             <div className="text-xs text-white font-bold flex items-center gap-1">
+              <RotateCcw size={12} className="text-red-400 -rotate-90" />
+              R' (Right Down)
+            </div>
+          </div>
+
+          {/* Gesture Item: LEFT */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-20 h-20 bg-slate-800 rounded-xl flex items-center justify-center relative overflow-hidden">
+               <Hand className="text-blue-400 animate-swipe-left" size={32} />
+               <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 font-mono rotate-90">LEFT</div>
+            </div>
+            <div className="text-xs text-white font-bold flex items-center gap-1">
+               <RotateCcw size={12} className="text-white" />
+               U (Top Left)
+            </div>
+          </div>
+
+          {/* Gesture Item: RIGHT */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-20 h-20 bg-slate-800 rounded-xl flex items-center justify-center relative overflow-hidden">
+               <Hand className="text-blue-400 animate-swipe-right" size={32} />
+               <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 font-mono -rotate-90">RIGHT</div>
+            </div>
+            <div className="text-xs text-white font-bold flex items-center gap-1">
+               <RotateCcw size={12} className="text-white scale-x-[-1]" />
+               U' (Top Right)
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-blue-500/10 p-4 rounded-xl text-left border border-blue-500/20 mb-6">
+          <h4 className="text-blue-300 text-xs font-bold uppercase mb-1 flex items-center gap-2">
+            <Info size={12} /> {t.howItWorks}
+          </h4>
+          <p className="text-[11px] text-blue-100/70 leading-relaxed">
+            {t.howItWorksDesc}
+          </p>
+        </div>
+
+        <button 
+          onClick={() => setShowGestureTutorial(false)}
+          className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition"
+        >
+          {t.gotIt}
+        </button>
       </div>
     </div>
   );
@@ -388,7 +562,7 @@ const App: React.FC = () => {
         </button>
         
         {/* Mode Toggle */}
-        <div className="flex bg-slate-900/80 p-1 rounded-full border border-white/10 backdrop-blur">
+        <div className="flex bg-slate-900/80 p-1 rounded-full border border-white/10 backdrop-blur shadow-lg">
           <button 
             onClick={() => setControlMode(ControlMode.TOUCH)}
             className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all ${controlMode === ControlMode.TOUCH ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
@@ -403,47 +577,138 @@ const App: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Tutorial Overlay */}
+      {showGestureTutorial && renderGestureTutorial()}
       
       {/* Main 3D View */}
       <div className="flex-1 relative">
-         <Cube3D state={cubeState} size={cubeSize} interactive={controlMode === ControlMode.TOUCH} />
+         <Cube3D 
+           state={cubeState} 
+           size={cubeSize} 
+           interactive={controlMode === ControlMode.TOUCH} 
+           pendingMove={pendingMove}
+         />
          
-         {/* Gesture Cam Overlay */}
-         <GestureControl isActive={controlMode === ControlMode.GESTURE} onGesture={handleGesture} />
+         {/* Gesture Controls */}
+         {controlMode === ControlMode.GESTURE && (
+           <>
+              <GestureControl isActive={true} onGesture={handleGesture} />
+              
+              {/* Tutorial Trigger Button for Gesture Mode */}
+              <div className="absolute top-20 right-4 z-20">
+                <button 
+                  onClick={() => setShowGestureTutorial(true)}
+                  className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white border border-white/20 shadow-lg shadow-purple-900/50 animate-bounce"
+                >
+                  <HelpCircle size={20} />
+                </button>
+              </div>
+           </>
+         )}
          
          {/* Touch Controls Overlay */}
          {controlMode === ControlMode.TOUCH && (
-           <div className="absolute inset-y-0 right-4 flex flex-col justify-center gap-3 z-10 pointer-events-none">
-             {/* Face Rotations */}
-             {Object.keys(Face).map((face) => (
-                <div key={face} className="flex gap-2 pointer-events-auto">
-                   <button 
-                    onClick={() => executeMove(face as Face, true)}
-                    className="w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur rounded border border-white/10 text-white font-bold text-xs"
-                   >
-                     {face}
-                   </button>
-                   <button 
-                    onClick={() => executeMove(face as Face, false)}
-                    className="w-10 h-10 bg-white/5 hover:bg-white/10 backdrop-blur rounded border border-white/5 text-white/70 font-bold text-xs"
-                   >
-                     {face}'
-                   </button>
-                </div>
-             ))}
-           </div>
+           <>
+            {/* Guide Button */}
+            <div className="absolute top-20 right-4 z-20">
+              <button 
+                onClick={() => setShowControlGuide(!showControlGuide)} 
+                className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center text-white/70 hover:text-white border border-white/10"
+              >
+                {showControlGuide ? <X size={16}/> : <HelpCircle size={16} />}
+              </button>
+            </div>
+
+            {/* Guide Overlay - Improved Layout */}
+            {showControlGuide && (
+              <div className="absolute top-32 right-4 w-64 bg-slate-900/95 backdrop-blur-xl p-4 rounded-xl border border-white/10 z-20 text-xs text-slate-300 shadow-xl animate-fade-in">
+                 <h4 className="font-bold text-white mb-3 pb-2 border-b border-white/10 flex justify-between">
+                    <span>{t.controlsGuide || 'Controls Guide'}</span>
+                    <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1 rounded">{t.controlsDesc || 'Notation'}</span>
+                 </h4>
+                 <div className="space-y-3">
+                   {/* Render Pairs */}
+                   {['U', 'D', 'R', 'L', 'F', 'B'].map((baseKey) => {
+                     const primeKey = `${baseKey}'`;
+                     const desc = currentMoveDescriptions[baseKey];
+                     const descPrime = currentMoveDescriptions[primeKey];
+                     
+                     if (!desc) return null;
+
+                     return (
+                        <div key={baseKey} className="flex flex-col gap-1 border-b border-white/5 pb-2 last:border-0">
+                           <div className="flex items-center justify-between">
+                              <span className="font-mono text-blue-400 font-bold bg-blue-500/10 px-1.5 rounded w-8 text-center">{baseKey}</span>
+                              <span className="text-right text-[10px] text-white/90">{desc}</span>
+                           </div>
+                           <div className="flex items-center justify-between">
+                              <span className="font-mono text-red-400 font-bold bg-red-500/10 px-1.5 rounded w-8 text-center">{primeKey}</span>
+                              <span className="text-right text-[10px] text-white/70">{descPrime}</span>
+                           </div>
+                        </div>
+                     );
+                   })}
+                 </div>
+              </div>
+            )}
+
+            {/* Control Buttons */}
+            <div className="absolute inset-y-0 right-4 flex flex-col justify-center gap-3 z-10 pointer-events-none">
+               {/* Face Rotations */}
+               {Object.keys(Face).map((face) => {
+                 // Helpers to check if pending
+                 const isPendingCW = pendingMove?.face === face && pendingMove?.clockwise === true;
+                 const isPendingCCW = pendingMove?.face === face && pendingMove?.clockwise === false;
+
+                 return (
+                  <div key={face} className="flex gap-2 pointer-events-auto group relative">
+                     <button 
+                      onClick={() => handleFreePlayAction(face as Face, true)}
+                      className={`w-10 h-10 backdrop-blur rounded border font-bold text-xs shadow-sm transition-all duration-300
+                         ${isPendingCW 
+                            ? 'bg-yellow-500 text-black border-yellow-400 scale-110 shadow-[0_0_15px_rgba(234,179,8,0.5)]' 
+                            : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'
+                         }`}
+                     >
+                       {face}
+                     </button>
+                     <button 
+                      onClick={() => handleFreePlayAction(face as Face, false)}
+                      className={`w-10 h-10 backdrop-blur rounded border font-bold text-xs shadow-sm transition-all duration-300
+                         ${isPendingCCW 
+                            ? 'bg-yellow-500 text-black border-yellow-400 scale-110 shadow-[0_0_15px_rgba(234,179,8,0.5)]' 
+                            : 'bg-white/5 hover:bg-white/10 border-white/5 text-white/70'
+                         }`}
+                     >
+                       {face}'
+                     </button>
+                     
+                     {/* Hover Tooltip (Localized) */}
+                     <div className="absolute right-full top-1/2 -translate-y-1/2 mr-3 w-40 px-3 py-2 bg-slate-900/90 backdrop-blur text-white text-[10px] rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition pointer-events-none shadow-xl z-50">
+                        <div className="font-bold mb-0.5 text-blue-300">{face}</div>
+                        <div className="text-white/80">{currentMoveDescriptions[face as string]}</div>
+                        <div className="border-t border-white/10 my-1"></div>
+                         <div className="font-bold mb-0.5 text-red-300">{face}'</div>
+                        <div className="text-white/60">{currentMoveDescriptions[`${face}'`]}</div>
+                     </div>
+                  </div>
+                 );
+               })}
+             </div>
+           </>
          )}
          
          {/* Instructions Toast */}
-         <div className="absolute top-20 left-1/2 -translate-x-1/2 pointer-events-none">
-           <div className="bg-black/50 backdrop-blur px-4 py-2 rounded-full text-xs text-white/80 border border-white/5">
+         <div className="absolute top-20 left-1/2 -translate-x-1/2 pointer-events-none z-10 w-full max-w-xs text-center">
+           <div className="inline-block bg-black/60 backdrop-blur px-4 py-2 rounded-full text-xs text-white/90 border border-white/10 shadow-lg">
               {controlMode === ControlMode.GESTURE ? t.gestureTip : t.touchTip}
            </div>
          </div>
          
          {/* Reset Bar */}
-         <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-4 px-6 pointer-events-none">
-           <div className="pointer-events-auto bg-slate-900/80 backdrop-blur p-4 rounded-2xl border border-white/10 flex gap-4">
+         <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-4 px-6 pointer-events-none z-20">
+           <div className="pointer-events-auto bg-slate-900/80 backdrop-blur p-4 rounded-2xl border border-white/10 flex gap-4 shadow-xl">
               <button 
                 onClick={() => setCubeState(getInitialCubeState(cubeSize))}
                 className="flex flex-col items-center gap-1 text-slate-300 hover:text-white px-4"

@@ -1,3 +1,4 @@
+
 import { CubeColor, Face, CubeState, CubeSize, Language, LearnTopic } from './types';
 
 export const FACE_ORDER = [Face.F, Face.R, Face.B, Face.L, Face.U, Face.D];
@@ -408,8 +409,63 @@ const BASE_LEARN_TOPICS_EN: LearnTopic[] = [
       }
     ]
   },
-  { id: '3', title: 'Finger Tricks', description: 'Speed up your solving with proper finger placement', level: 'Intermediate', duration: '15 min', sections: [] },
-  { id: '4', title: 'CFOP Overview', description: 'Introduction to the pro speedcubing method', level: 'Advanced', duration: '45 min', sections: [] },
+  { 
+    id: '3', 
+    title: 'Finger Tricks', 
+    description: 'Speed up your solving with proper finger placement', 
+    level: 'Intermediate', 
+    duration: '15 min', 
+    sections: [
+      {
+        title: 'The "Trigger" (R/R\')',
+        content: 'Instead of grabbing the whole right side with your hand, hold the cube with your thumb on Front and fingers on Back. Use your WRIST to rotate the right side up or down.',
+        visual: 'swipe-up'
+      },
+      {
+        title: 'Index Push (U)',
+        content: 'To turn the Top layer (U), hold the cube in both hands. Use your RIGHT Index finger to PUSH the top-back-right corner towards the left. This is much faster than regripping.',
+        visual: 'swipe-left'
+      },
+      {
+        title: 'Index Pull (U\')',
+        content: 'To turn the Top layer counter-clockwise (U\'), use your LEFT Index finger to PUSH the top-back-left corner towards the right.',
+        visual: 'swipe-right'
+      },
+      {
+        title: 'Thumb Push (F\')',
+        content: 'For Front turns, you can often use your RIGHT Thumb to push the bottom-right corner upwards to simulate an F\' move.',
+        visual: 'swipe-down'
+      }
+    ]
+  },
+  { 
+    id: '4', 
+    title: 'CFOP Overview', 
+    description: 'Introduction to the pro speedcubing method', 
+    level: 'Advanced', 
+    duration: '45 min', 
+    sections: [
+      {
+        title: 'Phase 1: Cross (C)',
+        content: 'Similar to the beginner method, but solve the Cross directly on the BOTTOM (D face) without making a daisy first. Advanced solvers plan the entire cross during inspection (15s).'
+      },
+      {
+        title: 'Phase 2: F2L (First 2 Layers)',
+        content: 'Instead of solving corners and then edges separately, you pair a Corner and an Edge in the top layer, then insert them together into their slot. This solves the first two layers simultaneously.',
+        algorithm: "Common Insert: R U' R'"
+      },
+      {
+        title: 'Phase 3: OLL (Orientation)',
+        content: 'Orient Last Layer. Use 1 of 57 algorithms to make the entire top face Yellow in one step, regardless of permutation.',
+        algorithm: "Example (Sune): R U R' U R U2 R'"
+      },
+      {
+        title: 'Phase 4: PLL (Permutation)',
+        content: 'Permute Last Layer. Use 1 of 21 algorithms to move the yellow pieces to their correct solved locations.',
+        algorithm: "Example (T-Perm): R U R' U' R' F R2 U' R' U' R U R' F'"
+      }
+    ]
+  },
 ];
 
 const BASE_LEARN_TOPICS_ZH: LearnTopic[] = [
@@ -451,8 +507,63 @@ const BASE_LEARN_TOPICS_ZH: LearnTopic[] = [
       { title: '第八步：顶层角块翻色', content: '目标：调整角块朝向，完成魔方。\n策略：1. 黄色面朝前(F)。2. 将未还原的角块放在右上角。3. 重复 (R\' D\' R D) 直到黄色朝前。\n4. 关键：只转动前层(F)，把下一个坏角块转到右上角，继续做公式。', algorithm: "R' D' R D" }
     ]
   },
-  { id: '3', title: '手指技巧', description: '学习正确的手法，提升速度', level: 'Intermediate', duration: '15 分钟', sections: [] },
-  { id: '4', title: 'CFOP 简介', description: '专业速拧解法概览', level: 'Advanced', duration: '45 分钟', sections: [] },
+  { 
+    id: '3', 
+    title: '手指技巧', 
+    description: '学习正确的手法，提升速度', 
+    level: 'Intermediate', 
+    duration: '15 分钟', 
+    sections: [
+      {
+        title: '扳机手法 (Trigger)',
+        content: '不要用整个手掌抓右层，而是拇指在前，手指在后。用手腕力量转动右层向上或向下。',
+        visual: 'swipe-up'
+      },
+      {
+        title: '食指推 (U)',
+        content: '转动顶层(U)时，双手持魔方。用右食指从后往前"推"右后角的棱块。这比换手抓取要快得多。',
+        visual: 'swipe-left'
+      },
+      {
+        title: '左食指推 (U\')',
+        content: '转动顶层逆时针(U\')时，用左食指从后往前"推"左后角的棱块。',
+        visual: 'swipe-right'
+      },
+      {
+        title: '拇指推 (F\')',
+        content: '做前层逆时针(F\')时，可以用右拇指向上推右下角的棱块。',
+        visual: 'swipe-down'
+      }
+    ]
+  },
+  { 
+    id: '4', 
+    title: 'CFOP 简介', 
+    description: '专业速拧解法概览', 
+    level: 'Advanced', 
+    duration: '45 分钟', 
+    sections: [
+      {
+        title: '阶段 1: 底层十字 (Cross)',
+        content: '类似层先法，但直接在底部(D面)还原十字，不经过小雏菊阶段。高手会在观察期(15秒)规划好整个十字的步数。'
+      },
+      {
+        title: '阶段 2: 前两层 (F2L)',
+        content: '不再分步还原角块和棱块。我们在顶层将一个角块和一个棱块配对，然后一起插入槽位。这能同时还原前两层。',
+        algorithm: "常用插入: R U' R'"
+      },
+      {
+        title: '阶段 3: 顶层定向 (OLL)',
+        content: 'Orientation Last Layer. 使用57个公式中的一个，一步将顶面全部变成黄色（不管侧面颜色）。',
+        algorithm: "示例 (小鱼): R U R' U R U2 R'"
+      },
+      {
+        title: '阶段 4: 顶层归位 (PLL)',
+        content: 'Permutation Last Layer. 使用21个公式中的一个，将顶层所有块移动到正确位置，完成魔方。',
+        algorithm: "示例 (T字爆): R U R' U' R' F R2 U' R' U' R U R' F'"
+      }
+    ]
+  },
 ];
 
 export const LEARN_TOPICS_DATA: Record<Language, LearnTopic[]> = {

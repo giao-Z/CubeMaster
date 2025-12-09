@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   RotateCcw, ChevronRight, ChevronLeft, CheckCircle, 
@@ -98,8 +99,6 @@ const App: React.FC = () => {
   };
 
   const handleGesture = (direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
-    // Left/Right -> Rotate U Face
-    // Up/Down -> Rotate R Face
     let face: Face | null = null;
     let cw = true;
 
@@ -109,14 +108,8 @@ const App: React.FC = () => {
     if (direction === 'DOWN') { face = Face.R; cw = false; }
 
     if (face) {
-      // For gestures, we can keep the 2-step logic or make it instant.
-      // To match the requested feature "Free Play... click U...", let's apply it generally.
-      // However, gestures might feel laggy if double swipe is needed. 
-      // Let's make gesture instant for better UX, as the user specifically mentioned "Click U" (Touch) for the breathing effect.
-      // Or, we can trigger the preview on first swipe? 
-      // Let's stick to instant for gestures to avoid frustration, as "hovering" with hand is hard.
       executeMove(face, cw);
-      setPendingMove(null); // Clear any pending touch selection
+      setPendingMove(null); 
     }
   };
 
@@ -385,6 +378,29 @@ const App: React.FC = () => {
     );
   };
 
+  const renderVisualAid = (visual: string) => {
+    let animationClass = '';
+    let label = '';
+    let Icon = Hand;
+    
+    switch (visual) {
+      case 'swipe-up': animationClass = 'animate-swipe-up'; label = 'Swipe UP (Wrist)'; break;
+      case 'swipe-down': animationClass = 'animate-swipe-down'; label = 'Swipe DOWN (Wrist)'; break;
+      case 'swipe-left': animationClass = 'animate-swipe-left'; label = 'Push Left (Index)'; break;
+      case 'swipe-right': animationClass = 'animate-swipe-right'; label = 'Push Right (Index)'; break;
+      default: return null;
+    }
+
+    return (
+      <div className="bg-black/40 p-4 rounded-xl border border-white/5 shadow-inner flex flex-col items-center gap-2 mb-4">
+         <div className="w-16 h-16 bg-slate-800 rounded-lg flex items-center justify-center overflow-hidden">
+            <Icon className={`text-blue-400 ${animationClass}`} size={32} />
+         </div>
+         <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{label}</span>
+      </div>
+    );
+  };
+
   const renderLearn = () => {
     // Detail View
     if (selectedTopic) {
@@ -417,7 +433,12 @@ const App: React.FC = () => {
                     <h3 className="text-lg font-bold text-white mb-3 ml-2">
                        {section.title}
                     </h3>
+                    
+                    {/* Visual Aid Integration */}
+                    {section.visual && renderVisualAid(section.visual)}
+
                     <p className="text-slate-300 leading-relaxed mb-4 text-sm whitespace-pre-line">{section.content}</p>
+                    
                     {section.algorithm && (
                        <div className="bg-black/40 p-4 rounded-xl font-mono text-center border border-white/5 shadow-inner">
                           <span className="text-blue-400 block text-[10px] uppercase tracking-widest mb-1 font-bold">Algorithm</span>

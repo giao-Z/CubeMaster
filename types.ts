@@ -1,3 +1,4 @@
+
 export type CubeColor = 'white' | 'yellow' | 'green' | 'blue' | 'red' | 'orange' | 'gray';
 
 export enum Face {
@@ -9,20 +10,18 @@ export enum Face {
   R = 'R', // Right (Red)
 }
 
-// Grid of colors for a single face (size * size)
 export type FaceGrid = CubeColor[];
 
-// The entire state of the cube (6 faces)
-export type CubeState = Record<Face, FaceGrid>;
+export type CubeState = {
+  [key in Face]: FaceGrid;
+};
 
 export type CubeSize = 2 | 3 | 4 | 5;
 
-export interface SolveStep {
-  move: string; // e.g., "R", "U'", "F2", "Rw"
+export type SolveStep = {
+  move: string;
   description: string;
-  rotationAxis?: 'x' | 'y' | 'z';
-  rotationDirection?: 1 | -1;
-}
+};
 
 export enum AppMode {
   HOME = 'HOME',
@@ -30,20 +29,22 @@ export enum AppMode {
   VERIFY = 'VERIFY',
   SOLVING_LOADING = 'SOLVING_LOADING',
   GUIDE = 'GUIDE',
+  PLAY = 'PLAY',
   LEARN = 'LEARN',
-  PLAY = 'PLAY'
 }
 
-export interface ScanProgress {
-  currentFace: Face;
-  completedFaces: Face[];
+export type Language = 'en' | 'zh' | 'es' | 'fr' | 'ru' | 'ar';
+
+export enum ControlMode {
+  TOUCH = 'TOUCH',
+  GESTURE = 'GESTURE'
 }
 
 export interface LearnSection {
   title: string;
   content: string;
   algorithm?: string;
-  image?: string; // Placeholder for potential image assets
+  visual?: 'swipe-left' | 'swipe-right' | 'swipe-up' | 'swipe-down';
 }
 
 export interface LearnTopic {
@@ -52,12 +53,5 @@ export interface LearnTopic {
   description: string;
   level: 'Beginner' | 'Intermediate' | 'Advanced';
   duration: string;
-  sections?: LearnSection[];
-}
-
-export type Language = 'en' | 'zh' | 'es' | 'fr' | 'ru' | 'ar';
-
-export enum ControlMode {
-  TOUCH = 'TOUCH',
-  GESTURE = 'GESTURE'
+  sections: LearnSection[];
 }

@@ -1,0 +1,7 @@
+{
+  "name": "CubeGuide AI",
+  "description": "Intelligent Rubik's Cube solver utilizing Computer Vision and Gemini AI for step-by-step AR guidance.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

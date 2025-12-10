@@ -1,3 +1,4 @@
+
 import React, { useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stage, Center } from '@react-three/drei';
@@ -31,15 +32,11 @@ const CubePiece: React.FC<{
     let breathe = 1;
     
     // Pop out animation logic
-    // We modify the mesh's position relative to its group (which holds the base position)
-    // Actually, `position` prop is passed to group. Mesh is at 0,0,0 relative to group.
-    
     if (isHighlighted) {
       // 1. Breathe Scale
       breathe = 1 + Math.sin(t * 10) * 0.05;
       
       // 2. Pop Direction
-      // We need to shift the piece slightly in the direction of the face normal
       const popDist = 0.15;
       let popX = 0, popY = 0, popZ = 0;
       
@@ -146,14 +143,18 @@ const CubeModel: React.FC<{
 
           // Top (Face U)
           if (isTop) {
-            const row = (size - 1) - z; // Back is top, Front is bottom
+            // FIXED MAPPING: Scan Row 0 (Top) is Back (z=0). Scan Row Max (Bottom) is Front (z=max).
+            // So row index should increase with z.
+            const row = z; 
             const col = x;
             cubeColors[2] = getC(Face.U, row * size + col);
           }
 
           // Bottom (Face D)
           if (isBottom) {
-            const row = z;
+            // FIXED MAPPING: Scan Row 0 (Top) is Front (z=max). Scan Row Max (Bottom) is Back (z=0).
+            // So row index should decrease as z increases.
+            const row = (size - 1) - z;
             const col = x;
             cubeColors[3] = getC(Face.D, row * size + col);
           }

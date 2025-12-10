@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { CubeState, CubeSize, SolveStep } from "../types";
 
@@ -34,14 +35,15 @@ export const getSolveSteps = async (cubeState: CubeState, size: CubeSize): Promi
     
     GOAL: Provide a step-by-step solution to solve the cube from the given scrambled state.
     
-    INPUT: A JSON-like representation of the 6 faces (F, R, B, L, U, D).
-    - F = Front
-    - R = Right
-    - B = Back
-    - L = Left
-    - U = Up
-    - D = Down
-    - Grid order: Row by row, from top-left to bottom-right.
+    INPUT CONTEXT:
+    The user has scanned the cube faces individually.
+    Standard Unfolded Layout definitions:
+    - F (Front): Row 0 touches U. Row Max touches D.
+    - R (Right): Row 0 touches U. Row Max touches D.
+    - B (Back): Row 0 touches U. Row Max touches D.
+    - L (Left): Row 0 touches U. Row Max touches D.
+    - U (Up): Row 0 is the BACK edge (touching B). Row Max is the FRONT edge (touching F).
+    - D (Down): Row 0 is the FRONT edge (touching F). Row Max is the BACK edge (touching B).
     
     OUTPUT: A purely JSON array of steps.
     

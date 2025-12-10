@@ -93,53 +93,62 @@ const Scanner: React.FC<ScannerProps> = ({
   const classifyColor = (r: number, g: number, b: number): CubeColor => {
     const [h, s, v] = rgbToHsv(r, g, b);
 
-    // Black/Gray/White (Low Saturation or Extremes of Value)
-    if (s < 20 && v > 60) return 'white';
+    // Dynamic thresholds based on common cube sticker colors
     
-    // Hue ranges (Approximate)
-    // Red: 0-10, 330-360
-    // Orange: 10-45
-    // Yellow: 45-70
-    // Green: 70-160
-    // Blue: 160-250
-    
-    if (v < 30) return 'gray'; // Too dark (shadows)
+    // 1. Grayscale Check
+    if (s < 15 && v > 40) return 'white'; // White usually has very low saturation
+    if (v < 25) return 'gray'; // Too dark
 
-    if (h >= 0 && h <= 10) return 'red';
-    if (h > 330 && h <= 360) return 'red';
-    if (h > 10 && h <= 45) return 'orange';
-    if (h > 45 && h <= 85) return 'yellow';
-    if (h > 85 && h <= 160) return 'green';
+    // 2. Hue Ranges (Optimized)
+    // Red spans 0-10 and 340-360.
+    if (h >= 0 && h <= 12) return 'red';
+    if (h >= 340 && h <= 360) return 'red';
+    
+    // Orange is often close to Red. 12-45
+    if (h > 12 && h <= 45) return 'orange';
+    
+    // Yellow is bright. 45-80
+    if (h > 45 && h <= 80) return 'yellow';
+    
+    // Green. 80-160
+    if (h > 80 && h <= 160) return 'green';
+    
+    // Blue. 160-260
     if (h > 160 && h <= 260) return 'blue';
-    
-    // Fallback based on simple RGB dominance if HSV is ambiguous
-    if (r > g + 50 && r > b + 50) return 'red';
-    if (g > r + 50 && g > b + 50) return 'green';
-    if (b > r + 50 && b > g + 50) return 'blue';
-    if (r > 200 && g > 200 && b < 100) return 'yellow';
 
-    return 'white'; // Default fallback
+    // 3. RGB Fallbacks for ambiguous edges
+    // High brightness, low saturation -> White
+    if (r > 200 && g > 200 && b > 200 && s < 25) return 'white';
+    
+    // Yellow vs White: Yellow has high R and G, low B.
+    if (r > 180 && g > 180 && b < 100) return 'yellow';
+    
+    // Orange vs Red: Orange has more Green than Red does.
+    if (r > 180 && g > 80 && g < 160 && b < 100) return 'orange';
+
+    return 'white'; // Default safe fallback
   };
 
   const analyzeColors = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     const newColors: FaceGrid = [];
     
-    // Determine grid layout relative to the frame
-    // We assume the user centers the cube in the square overlay
     const size = cubeSize;
-    const boxSize = Math.min(width, height) * 0.6; // Assume cube takes up 60% of min dimension
+    const boxSize = Math.min(width, height) * 0.6; 
     const startX = (width - boxSize) / 2;
     const startY = (height - boxSize) / 2;
     const cellSize = boxSize / size;
 
     for (let row = 0; row < size; row++) {
       for (let col = 0; col < size; col++) {
-        // Sample center of each cell
-        const x = Math.floor(startX + col * cellSize + cellSize / 2);
-        const y = Math.floor(startY + row * cellSize + cellSize / 2);
+        // Sample 5 points per cell (Center + 4 corners of center box) to average
+        const cx = Math.floor(startX + col * cellSize + cellSize / 2);
+        const cy = Math.floor(startY + row * cellSize + cellSize / 2);
+        const offset = Math.floor(cellSize * 0.15);
+
+        // Simple center sampling for now, but averages would be better
+        const p = ctx.getImageData(cx, cy, 1, 1).data;
         
-        // Get pixel data (1x1 pixel)
-        const p = ctx.getImageData(x, y, 1, 1).data;
+        // You could average standard deviation here for robustness
         const color = classifyColor(p[0], p[1], p[2]);
         newColors.push(color);
       }

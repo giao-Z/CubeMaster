@@ -50,21 +50,93 @@ const Scanner: React.FC<ScannerProps> = ({ currentFace, cubeSize, onCapture, fac
     };
   }, []);
 
-  // Re-attach stream when video element reappears (e.g. after retake)
+  // Re-attach stream when video element reappears
   useEffect(() => {
     if (videoRef.current && stream && !capturedImage) {
       videoRef.current.srcObject = stream;
     }
   }, [capturedImage, stream]);
 
+  // --- COLOR DETECTION LOGIC ---
+  
+  // Convert RGB to HSV for better color segmentation
+  const rgbToHsv = (r: number, g: number, b: number) => {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, v = max;
+    const d = max - min;
+    s = max === 0 ? 0 : d / max;
+
+    if (max !== min) {
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return [h * 360, s * 100, v * 100];
+  };
+
+  const classifyColor = (r: number, g: number, b: number): CubeColor => {
+    const [h, s, v] = rgbToHsv(r, g, b);
+
+    // Black/Gray/White (Low Saturation or Extremes of Value)
+    if (s < 20 && v > 60) return 'white';
+    
+    // Hue ranges (Approximate)
+    // Red: 0-10, 330-360
+    // Orange: 10-45
+    // Yellow: 45-70
+    // Green: 70-160
+    // Blue: 160-250
+    
+    if (v < 30) return 'gray'; // Too dark (shadows)
+
+    if (h >= 0 && h <= 10) return 'red';
+    if (h > 330 && h <= 360) return 'red';
+    if (h > 10 && h <= 45) return 'orange';
+    if (h > 45 && h <= 85) return 'yellow';
+    if (h > 85 && h <= 160) return 'green';
+    if (h > 160 && h <= 260) return 'blue';
+    
+    // Fallback based on simple RGB dominance if HSV is ambiguous
+    if (r > g + 50 && r > b + 50) return 'red';
+    if (g > r + 50 && g > b + 50) return 'green';
+    if (b > r + 50 && b > g + 50) return 'blue';
+    if (r > 200 && g > 200 && b < 100) return 'yellow';
+
+    return 'white'; // Default fallback
+  };
+
   const analyzeColors = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-    // Simulation: Pre-fill with "likely" colors (just center color for now for UX simplicity)
-    // In a real app with OpenCV, we would slice the image into (size x size) grids and avg color.
-    const centerColor = FACE_CENTER_COLORS[currentFace];
-    // For even cubes (2x2, 4x4) where center doesn't exist technically, we guess based on standard orientation
-    // or just default to gray to force user input.
-    const fill = (cubeSize % 2 !== 0) ? centerColor : 'gray';
-    const newColors: FaceGrid = Array(cubeSize * cubeSize).fill(fill);
+    const newColors: FaceGrid = [];
+    
+    // Determine grid layout relative to the frame
+    // We assume the user centers the cube in the square overlay
+    // The overlay is roughly centered. 
+    // In CSS we use w-72 (18rem = 288px) or w-96 (24rem = 384px) depending on screen.
+    // Let's assume the capture is the full video frame, and we sample from the center region.
+    
+    const size = cubeSize;
+    const boxSize = Math.min(width, height) * 0.6; // Assume cube takes up 60% of min dimension
+    const startX = (width - boxSize) / 2;
+    const startY = (height - boxSize) / 2;
+    const cellSize = boxSize / size;
+
+    for (let row = 0; row < size; row++) {
+      for (let col = 0; col < size; col++) {
+        // Sample center of each cell
+        const x = Math.floor(startX + col * cellSize + cellSize / 2);
+        const y = Math.floor(startY + row * cellSize + cellSize / 2);
+        
+        // Get pixel data (1x1 pixel)
+        const p = ctx.getImageData(x, y, 1, 1).data;
+        const color = classifyColor(p[0], p[1], p[2]);
+        newColors.push(color);
+      }
+    }
+
     setDetectedColors(newColors);
   };
 
@@ -77,6 +149,8 @@ const Scanner: React.FC<ScannerProps> = ({ currentFace, cubeSize, onCapture, fac
       if (ctx) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
+        
+        // Draw the current frame
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         const dataUrl = canvas.toDataURL('image/png');
@@ -102,7 +176,7 @@ const Scanner: React.FC<ScannerProps> = ({ currentFace, cubeSize, onCapture, fac
   const handleConfirm = () => {
     // Validate that no gray remains
     if (detectedColors.includes('gray')) {
-      alert("Please fill in all colors.");
+      alert("Please fill in all undetected cells manually.");
       return;
     }
     onCapture(detectedColors);
@@ -157,15 +231,12 @@ const Scanner: React.FC<ScannerProps> = ({ currentFace, cubeSize, onCapture, fac
             <button
               key={idx}
               onClick={() => handleGridClick(idx)}
-              className={`w-full h-full rounded-sm border transition-all duration-200 active:scale-95 shadow-inner
+              className={`w-full h-full rounded-sm border transition-all duration-200 active:scale-95 shadow-inner flex items-center justify-center
                 ${capturedImage ? 'border-white' : 'border-white/30'}
               `}
               style={{ backgroundColor: COLOR_HEX[color] }}
             >
-              {/* Optional: Center dot for odd cubes */}
-              {cubeSize % 2 !== 0 && idx === Math.floor((cubeSize * cubeSize) / 2) && (
-                <div className="w-1.5 h-1.5 bg-black/50 rounded-full mx-auto" />
-              )}
+              {color === 'gray' && <span className="text-white/50 text-[10px] font-bold">?</span>}
             </button>
           ))}
         </div>
@@ -189,7 +260,7 @@ const Scanner: React.FC<ScannerProps> = ({ currentFace, cubeSize, onCapture, fac
           /* Validation Mode Controls */
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-center px-2">
-              <span className="text-sm text-gray-400">Select color below to fix cells</span>
+              <span className="text-sm text-gray-400">Tap color circle, then tap grid to fix</span>
               <button onClick={handleRetake} className="text-xs text-red-400 flex items-center gap-1 bg-red-500/10 px-2 py-1 rounded">
                 <RefreshCw size={12} /> Retake
               </button>
@@ -201,9 +272,11 @@ const Scanner: React.FC<ScannerProps> = ({ currentFace, cubeSize, onCapture, fac
                 <button
                   key={c}
                   onClick={() => setSelectedColor(c)}
-                  className={`w-10 h-10 shrink-0 rounded-full border-2 transition-transform ${selectedColor === c ? 'scale-110 border-white ring-2 ring-white/50' : 'border-transparent scale-100'}`}
+                  className={`w-10 h-10 shrink-0 rounded-full border-2 transition-transform flex items-center justify-center ${selectedColor === c ? 'scale-110 border-white ring-2 ring-white/50' : 'border-transparent scale-100'}`}
                   style={{ backgroundColor: COLOR_HEX[c] }}
-                />
+                >
+                   {selectedColor === c && <Check size={16} className={c === 'white' || c === 'yellow' ? 'text-black' : 'text-white'} />}
+                </button>
               ))}
             </div>
 

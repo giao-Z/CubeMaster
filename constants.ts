@@ -21,6 +21,20 @@ export const FACE_CENTER_COLORS: Record<Face, CubeColor> = {
   [Face.D]: 'yellow',
 };
 
+// Defines the neighbor colors relative to the camera view for standard scanning orientation
+// Assuming: 
+// F/R/B/L: White is Top, Yellow is Bottom
+// U: Blue is Top (Back), Green is Bottom (Front)
+// D: Green is Top (Front), Blue is Bottom (Back)
+export const SCAN_NEIGHBORS: Record<Face, { top: CubeColor, bottom: CubeColor, left: CubeColor, right: CubeColor }> = {
+  [Face.F]: { top: 'white', bottom: 'yellow', left: 'orange', right: 'red' },
+  [Face.R]: { top: 'white', bottom: 'yellow', left: 'green', right: 'blue' },
+  [Face.B]: { top: 'white', bottom: 'yellow', left: 'red', right: 'orange' },
+  [Face.L]: { top: 'white', bottom: 'yellow', left: 'blue', right: 'green' },
+  [Face.U]: { top: 'blue', bottom: 'green', left: 'orange', right: 'red' },
+  [Face.D]: { top: 'green', bottom: 'blue', left: 'orange', right: 'red' },
+};
+
 export const COLOR_HEX: Record<CubeColor, string> = {
   white: '#FFFFFF',
   yellow: '#FFD500',
@@ -75,6 +89,17 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     howItWorksDesc: 'The camera tracks the optical flow of your movement. Ensure you are in a well-lit environment and move your hand clearly in front of the camera.',
     controlsGuide: 'Controls Guide',
     controlsDesc: 'Standard Notation',
+    // Directions & Colors
+    dirTop: 'Top',
+    dirBottom: 'Bottom',
+    dirLeft: 'Left',
+    dirRight: 'Right',
+    colorWhite: 'White',
+    colorYellow: 'Yellow',
+    colorGreen: 'Green',
+    colorBlue: 'Blue',
+    colorRed: 'Red',
+    colorOrange: 'Orange',
   },
   zh: {
     appTitle: '魔方大师 Pro',
@@ -110,6 +135,17 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     howItWorksDesc: '摄像头会追踪您手部运动的光流变化。请确保环境光线充足，并在摄像头前清晰地挥动手部。',
     controlsGuide: '操作指南',
     controlsDesc: '标准魔方符号',
+    // Directions & Colors
+    dirTop: '上方',
+    dirBottom: '下方',
+    dirLeft: '左侧',
+    dirRight: '右侧',
+    colorWhite: '白色',
+    colorYellow: '黄色',
+    colorGreen: '绿色',
+    colorBlue: '蓝色',
+    colorRed: '红色',
+    colorOrange: '橙色',
   },
   es: {
     appTitle: 'CubeMaster Pro',
@@ -145,6 +181,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     howItWorksDesc: 'La cámara rastrea el flujo óptico de tu movimiento. Asegúrate de tener buena iluminación.',
     controlsGuide: 'Guía de Controles',
     controlsDesc: 'Notación Estándar',
+    dirTop: 'Arriba',
+    dirBottom: 'Abajo',
+    dirLeft: 'Izquierda',
+    dirRight: 'Derecha',
+    colorWhite: 'Blanco',
+    colorYellow: 'Amarillo',
+    colorGreen: 'Verde',
+    colorBlue: 'Azul',
+    colorRed: 'Rojo',
+    colorOrange: 'Naranja',
   },
   fr: {
     appTitle: 'CubeMaster Pro',
@@ -180,6 +226,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     howItWorksDesc: 'La caméra suit le flux optique. Assurez-vous d\'être dans un environnement bien éclairé.',
     controlsGuide: 'Guide des Contrôles',
     controlsDesc: 'Notation Standard',
+    dirTop: 'Haut',
+    dirBottom: 'Bas',
+    dirLeft: 'Gauche',
+    dirRight: 'Droite',
+    colorWhite: 'Blanc',
+    colorYellow: 'Jaune',
+    colorGreen: 'Vert',
+    colorBlue: 'Bleu',
+    colorRed: 'Rouge',
+    colorOrange: 'Orange',
   },
   ru: {
     appTitle: 'CubeMaster Pro',
@@ -215,6 +271,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     howItWorksDesc: 'Камера отслеживает движение. Обеспечьте хорошее освещение.',
     controlsGuide: 'Управление',
     controlsDesc: 'Стандартная нотация',
+    dirTop: 'Верх',
+    dirBottom: 'Низ',
+    dirLeft: 'Лево',
+    dirRight: 'Право',
+    colorWhite: 'Белый',
+    colorYellow: 'Желтый',
+    colorGreen: 'Зеленый',
+    colorBlue: 'Синий',
+    colorRed: 'Красный',
+    colorOrange: 'Оранжевый',
   },
   ar: {
     appTitle: 'CubeMaster Pro',
@@ -250,6 +316,16 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     howItWorksDesc: 'تتتبع الكاميرا حركة يدك. تأكد من وجود إضاءة جيدة.',
     controlsGuide: 'دليل التحكم',
     controlsDesc: 'الرموز القياسية',
+    dirTop: 'أعلى',
+    dirBottom: 'أسفل',
+    dirLeft: 'يسار',
+    dirRight: 'يمين',
+    colorWhite: 'أبيض',
+    colorYellow: 'أصفر',
+    colorGreen: 'أخضر',
+    colorBlue: 'أزرق',
+    colorRed: 'أحمر',
+    colorOrange: 'برتقالي',
   },
 };
 

@@ -12,7 +12,7 @@ import GestureControl from './components/GestureControl';
 import { getSolveSteps } from './services/geminiService';
 import { rotateFace } from './services/cubeLogic';
 import { AppMode, CubeState, Face, FaceGrid, SolveStep, CubeSize, Language, ControlMode, LearnTopic } from './types';
-import { FACE_ORDER, FACE_NAMES, getInitialCubeState, LEARN_TOPICS_DATA, LANGUAGES, TRANSLATIONS, MOVE_DESCRIPTIONS_DATA } from './constants';
+import { FACE_ORDER, FACE_NAMES, getInitialCubeState, LEARN_TOPICS_DATA, LANGUAGES, TRANSLATIONS, MOVE_DESCRIPTIONS_DATA, SCAN_NEIGHBORS } from './constants';
 
 const App: React.FC = () => {
   // Global State
@@ -40,6 +40,16 @@ const App: React.FC = () => {
   const t = TRANSLATIONS[language];
   const currentMoveDescriptions = MOVE_DESCRIPTIONS_DATA[language];
   const currentLearnTopics = LEARN_TOPICS_DATA[language];
+
+  // Helper object for localized color names map
+  const getColorNames = () => ({
+    white: t.colorWhite,
+    yellow: t.colorYellow,
+    green: t.colorGreen,
+    blue: t.colorBlue,
+    red: t.colorRed,
+    orange: t.colorOrange,
+  });
 
   // Logic
   const initMode = (targetMode: AppMode, size: CubeSize = 3) => {
@@ -236,6 +246,9 @@ const App: React.FC = () => {
         cubeSize={cubeSize}
         faceName={FACE_NAMES[currentScanFace]}
         onCapture={handleFaceCaptured}
+        neighbors={SCAN_NEIGHBORS[currentScanFace]}
+        dirNames={{ top: t.dirTop, bottom: t.dirBottom, left: t.dirLeft, right: t.dirRight }}
+        colorNames={getColorNames()}
       />
       {/* Progress Dots */}
       <div className="bg-slate-900 py-6 px-4">

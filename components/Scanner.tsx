@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { RefreshCw, Check, Grid3X3, Sliders } from 'lucide-react';
 import { CubeColor, FaceGrid, Face, CubeSize } from '../types';
@@ -8,9 +9,20 @@ interface ScannerProps {
   cubeSize: CubeSize;
   onCapture: (colors: FaceGrid) => void;
   faceName: string;
+  neighbors?: { top: CubeColor; bottom: CubeColor; left: CubeColor; right: CubeColor };
+  dirNames?: { top: string; bottom: string; left: string; right: string };
+  colorNames?: Record<string, string>;
 }
 
-const Scanner: React.FC<ScannerProps> = ({ currentFace, cubeSize, onCapture, faceName }) => {
+const Scanner: React.FC<ScannerProps> = ({ 
+  currentFace, 
+  cubeSize, 
+  onCapture, 
+  faceName,
+  neighbors,
+  dirNames = { top: 'Top', bottom: 'Bottom', left: 'Left', right: 'Right' },
+  colorNames = {}
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -114,10 +126,6 @@ const Scanner: React.FC<ScannerProps> = ({ currentFace, cubeSize, onCapture, fac
     
     // Determine grid layout relative to the frame
     // We assume the user centers the cube in the square overlay
-    // The overlay is roughly centered. 
-    // In CSS we use w-72 (18rem = 288px) or w-96 (24rem = 384px) depending on screen.
-    // Let's assume the capture is the full video frame, and we sample from the center region.
-    
     const size = cubeSize;
     const boxSize = Math.min(width, height) * 0.6; // Assume cube takes up 60% of min dimension
     const startX = (width - boxSize) / 2;
@@ -194,6 +202,17 @@ const Scanner: React.FC<ScannerProps> = ({ currentFace, cubeSize, onCapture, fac
     }
   };
 
+  // Helper component for orientation pill
+  const OrientationPill: React.FC<{ dir: string, color: CubeColor, className?: string }> = ({ dir, color, className }) => (
+    <div className={`absolute flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 shadow-lg ${className}`}>
+      <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: COLOR_HEX[color] }}></div>
+      <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">
+        <span className="text-slate-400 mr-1">{dir}:</span> 
+        {colorNames[color] || color}
+      </span>
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-full w-full bg-black relative">
       {/* Header Info */}
@@ -239,6 +258,36 @@ const Scanner: React.FC<ScannerProps> = ({ currentFace, cubeSize, onCapture, fac
               {color === 'gray' && <span className="text-white/50 text-[10px] font-bold">?</span>}
             </button>
           ))}
+          
+          {/* Neighbors Hints - Only show when NOT captured yet */}
+          {!capturedImage && neighbors && (
+            <>
+              {/* Top Neighbor */}
+              <OrientationPill 
+                dir={dirNames.top} 
+                color={neighbors.top} 
+                className="-top-12 left-1/2 -translate-x-1/2" 
+              />
+              {/* Bottom Neighbor */}
+              <OrientationPill 
+                dir={dirNames.bottom} 
+                color={neighbors.bottom} 
+                className="-bottom-12 left-1/2 -translate-x-1/2" 
+              />
+              {/* Left Neighbor */}
+              <OrientationPill 
+                dir={dirNames.left} 
+                color={neighbors.left} 
+                className="top-1/2 -left-36 -translate-y-1/2" // Positioned outside grid
+              />
+               {/* Right Neighbor */}
+              <OrientationPill 
+                dir={dirNames.right} 
+                color={neighbors.right} 
+                className="top-1/2 -right-36 -translate-y-1/2" 
+              />
+            </>
+          )}
         </div>
       </div>
 

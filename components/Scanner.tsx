@@ -1,8 +1,8 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { RefreshCw, Check, Grid3X3, Sliders } from 'lucide-react';
+import { RefreshCw, Check, Grid3X3 } from 'lucide-react';
 import { CubeColor, FaceGrid, Face, CubeSize } from '../types';
-import { COLOR_HEX, FACE_CENTER_COLORS } from '../constants';
+import { COLOR_HEX } from '../constants';
 
 interface ScannerProps {
   currentFace: Face;
@@ -12,6 +12,7 @@ interface ScannerProps {
   neighbors?: { top: CubeColor; bottom: CubeColor; left: CubeColor; right: CubeColor };
   dirNames?: { top: string; bottom: string; left: string; right: string };
   colorNames?: Record<string, string>;
+  translations: Record<string, string>;
 }
 
 const Scanner: React.FC<ScannerProps> = ({ 
@@ -21,7 +22,8 @@ const Scanner: React.FC<ScannerProps> = ({
   faceName,
   neighbors,
   dirNames = { top: 'Top', bottom: 'Bottom', left: 'Left', right: 'Right' },
-  colorNames = {}
+  colorNames = {},
+  translations
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -30,12 +32,10 @@ const Scanner: React.FC<ScannerProps> = ({
   const [detectedColors, setDetectedColors] = useState<FaceGrid>([]);
   const [selectedColor, setSelectedColor] = useState<CubeColor | null>(null);
 
-  // Initialize Detection Array based on size
   useEffect(() => {
     setDetectedColors(Array(cubeSize * cubeSize).fill('gray'));
   }, [cubeSize, currentFace]);
 
-  // Initialize Camera
   useEffect(() => {
     let currentStream: MediaStream | null = null;
     
@@ -62,16 +62,12 @@ const Scanner: React.FC<ScannerProps> = ({
     };
   }, []);
 
-  // Re-attach stream when video element reappears
   useEffect(() => {
     if (videoRef.current && stream && !capturedImage) {
       videoRef.current.srcObject = stream;
     }
   }, [capturedImage, stream]);
 
-  // --- COLOR DETECTION LOGIC ---
-  
-  // Convert RGB to HSV for better color segmentation
   const rgbToHsv = (r: number, g: number, b: number) => {
     r /= 255; g /= 255; b /= 255;
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
@@ -92,46 +88,26 @@ const Scanner: React.FC<ScannerProps> = ({
 
   const classifyColor = (r: number, g: number, b: number): CubeColor => {
     const [h, s, v] = rgbToHsv(r, g, b);
-
-    // Dynamic thresholds based on common cube sticker colors
     
-    // 1. Grayscale Check
-    if (s < 15 && v > 40) return 'white'; // White usually has very low saturation
-    if (v < 25) return 'gray'; // Too dark
+    if (s < 15 && v > 40) return 'white'; 
+    if (v < 25) return 'gray'; 
 
-    // 2. Hue Ranges (Optimized)
-    // Red spans 0-10 and 340-360.
     if (h >= 0 && h <= 12) return 'red';
     if (h >= 340 && h <= 360) return 'red';
-    
-    // Orange is often close to Red. 12-45
     if (h > 12 && h <= 45) return 'orange';
-    
-    // Yellow is bright. 45-80
     if (h > 45 && h <= 80) return 'yellow';
-    
-    // Green. 80-160
     if (h > 80 && h <= 160) return 'green';
-    
-    // Blue. 160-260
     if (h > 160 && h <= 260) return 'blue';
 
-    // 3. RGB Fallbacks for ambiguous edges
-    // High brightness, low saturation -> White
     if (r > 200 && g > 200 && b > 200 && s < 25) return 'white';
-    
-    // Yellow vs White: Yellow has high R and G, low B.
     if (r > 180 && g > 180 && b < 100) return 'yellow';
-    
-    // Orange vs Red: Orange has more Green than Red does.
     if (r > 180 && g > 80 && g < 160 && b < 100) return 'orange';
 
-    return 'white'; // Default safe fallback
+    return 'white'; 
   };
 
   const analyzeColors = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     const newColors: FaceGrid = [];
-    
     const size = cubeSize;
     const boxSize = Math.min(width, height) * 0.6; 
     const startX = (width - boxSize) / 2;
@@ -140,20 +116,13 @@ const Scanner: React.FC<ScannerProps> = ({
 
     for (let row = 0; row < size; row++) {
       for (let col = 0; col < size; col++) {
-        // Sample 5 points per cell (Center + 4 corners of center box) to average
         const cx = Math.floor(startX + col * cellSize + cellSize / 2);
         const cy = Math.floor(startY + row * cellSize + cellSize / 2);
-        const offset = Math.floor(cellSize * 0.15);
-
-        // Simple center sampling for now, but averages would be better
         const p = ctx.getImageData(cx, cy, 1, 1).data;
-        
-        // You could average standard deviation here for robustness
         const color = classifyColor(p[0], p[1], p[2]);
         newColors.push(color);
       }
     }
-
     setDetectedColors(newColors);
   };
 
@@ -162,14 +131,10 @@ const Scanner: React.FC<ScannerProps> = ({
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
-      
       if (ctx) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        
-        // Draw the current frame
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
         const dataUrl = canvas.toDataURL('image/png');
         setCapturedImage(dataUrl);
         analyzeColors(ctx, canvas.width, canvas.height);
@@ -191,7 +156,6 @@ const Scanner: React.FC<ScannerProps> = ({
   };
 
   const handleConfirm = () => {
-    // Validate that no gray remains
     if (detectedColors.includes('gray')) {
       alert("Please fill in all undetected cells manually.");
       return;
@@ -200,7 +164,6 @@ const Scanner: React.FC<ScannerProps> = ({
     handleRetake();
   };
 
-  // Dynamic Grid Class
   const getGridClass = () => {
     switch(cubeSize) {
       case 2: return 'grid-cols-2';
@@ -211,7 +174,6 @@ const Scanner: React.FC<ScannerProps> = ({
     }
   };
 
-  // Helper component for orientation pill
   const OrientationPill: React.FC<{ dir: string, color: CubeColor, className?: string }> = ({ dir, color, className }) => (
     <div className={`absolute flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 shadow-lg ${className}`}>
       <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: COLOR_HEX[color] }}></div>
@@ -224,36 +186,21 @@ const Scanner: React.FC<ScannerProps> = ({
 
   return (
     <div className="flex flex-col h-full w-full bg-black relative">
-      {/* Header Info */}
       <div className="absolute top-4 left-0 right-0 z-20 flex justify-center pointer-events-none">
         <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 text-white font-medium shadow-lg flex items-center gap-2">
           <Grid3X3 size={16} className="text-blue-400" />
-          <span>Scanning {cubeSize}x{cubeSize}: <span className="text-yellow-400">{faceName}</span></span>
+          <span>{translations.scanning} {cubeSize}x{cubeSize}: <span className="text-yellow-400">{faceName}</span></span>
         </div>
       </div>
 
-      {/* Main Viewport */}
       <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-gray-900">
-        
         {!capturedImage && (
-          <video 
-            ref={videoRef} 
-            autoPlay 
-            playsInline 
-            muted 
-            className="absolute inset-0 w-full h-full object-cover opacity-80"
-          />
+          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover opacity-80" />
         )}
-
         {capturedImage && (
-          <img 
-            src={capturedImage} 
-            alt="Captured Face" 
-            className="absolute inset-0 w-full h-full object-cover blur-sm brightness-50"
-          />
+          <img src={capturedImage} alt="Captured Face" className="absolute inset-0 w-full h-full object-cover blur-sm brightness-50" />
         )}
 
-        {/* Dynamic Grid Overlay */}
         <div className={`relative z-10 w-72 h-72 lg:w-96 lg:h-96 grid gap-1 p-2 border-2 border-white/30 rounded-lg bg-black/10 backdrop-blur-[2px] ${getGridClass()}`}>
           {detectedColors.map((color, idx) => (
             <button
@@ -268,63 +215,33 @@ const Scanner: React.FC<ScannerProps> = ({
             </button>
           ))}
           
-          {/* Neighbors Hints - Only show when NOT captured yet */}
           {!capturedImage && neighbors && (
             <>
-              {/* Top Neighbor */}
-              <OrientationPill 
-                dir={dirNames.top} 
-                color={neighbors.top} 
-                className="-top-12 left-1/2 -translate-x-1/2" 
-              />
-              {/* Bottom Neighbor */}
-              <OrientationPill 
-                dir={dirNames.bottom} 
-                color={neighbors.bottom} 
-                className="-bottom-12 left-1/2 -translate-x-1/2" 
-              />
-              {/* Left Neighbor */}
-              <OrientationPill 
-                dir={dirNames.left} 
-                color={neighbors.left} 
-                className="top-1/2 -left-36 -translate-y-1/2" // Positioned outside grid
-              />
-               {/* Right Neighbor */}
-              <OrientationPill 
-                dir={dirNames.right} 
-                color={neighbors.right} 
-                className="top-1/2 -right-36 -translate-y-1/2" 
-              />
+              <OrientationPill dir={dirNames.top} color={neighbors.top} className="-top-12 left-1/2 -translate-x-1/2" />
+              <OrientationPill dir={dirNames.bottom} color={neighbors.bottom} className="-bottom-12 left-1/2 -translate-x-1/2" />
+              <OrientationPill dir={dirNames.left} color={neighbors.left} className="top-1/2 -left-36 -translate-y-1/2" />
+              <OrientationPill dir={dirNames.right} color={neighbors.right} className="top-1/2 -right-36 -translate-y-1/2" />
             </>
           )}
         </div>
       </div>
 
-      {/* Controls Area */}
       <div className="bg-dark-card border-t border-white/10 p-4 pb-8 space-y-4">
-        
-        {/* Capture Mode Controls */}
         {!capturedImage ? (
           <div className="flex flex-col items-center gap-4">
-             <p className="text-gray-400 text-sm">Align the {cubeSize}x{cubeSize} face within the grid</p>
-             <button 
-                onClick={handleCapture}
-                className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all"
-             >
+             <p className="text-gray-400 text-sm">{translations.alignFace.replace('{size}', cubeSize.toString())}</p>
+             <button onClick={handleCapture} className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center hover:bg-white/20 active:scale-95 transition-all">
                <div className="w-12 h-12 bg-white rounded-full" />
              </button>
           </div>
         ) : (
-          /* Validation Mode Controls */
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-center px-2">
-              <span className="text-sm text-gray-400">Tap color circle, then tap grid to fix</span>
+              <span className="text-sm text-gray-400">{translations.tapToFix}</span>
               <button onClick={handleRetake} className="text-xs text-red-400 flex items-center gap-1 bg-red-500/10 px-2 py-1 rounded">
-                <RefreshCw size={12} /> Retake
+                <RefreshCw size={12} /> {translations.retake}
               </button>
             </div>
-
-            {/* Color Palette */}
             <div className="flex justify-between gap-1 overflow-x-auto pb-2">
               {(Object.keys(COLOR_HEX) as CubeColor[]).filter(c => c !== 'gray').map((c) => (
                 <button
@@ -337,18 +254,12 @@ const Scanner: React.FC<ScannerProps> = ({
                 </button>
               ))}
             </div>
-
-            <button 
-              onClick={handleConfirm}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
-            >
-              <Check size={20} /> Confirm Face
+            <button onClick={handleConfirm} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+              <Check size={20} /> {translations.confirm}
             </button>
           </div>
         )}
       </div>
-
-      {/* Hidden Canvas */}
       <canvas ref={canvasRef} className="hidden" />
     </div>
   );

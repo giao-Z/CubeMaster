@@ -3,19 +3,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { CubeState, CubeSize, SolveStep } from "../types";
 
 const cubeStateToString = (state: CubeState): string => {
-  // Serialize the state in a very explicit format for the LLM
   let description = "Cube Configuration:\n";
-  
-  // Explicitly list face centers if odd
-  // And full grid readings
   const faces = ['F', 'R', 'B', 'L', 'U', 'D'];
-  
   faces.forEach(f => {
     // @ts-ignore
     const grid = state[f];
     description += `[Face ${f}]: ${grid.join(', ')}\n`;
   });
-  
   return description;
 };
 
@@ -26,7 +20,6 @@ export const getSolveSteps = async (cubeState: CubeState, size: CubeSize): Promi
   }
 
   const ai = new GoogleGenAI({ apiKey });
-
   const stateDescription = cubeStateToString(cubeState);
   
   const systemInstruction = `
@@ -48,9 +41,13 @@ export const getSolveSteps = async (cubeState: CubeState, size: CubeSize): Promi
     OUTPUT: A purely JSON array of steps.
     
     CRITICAL RULES:
-    1. If the state looks impossible (e.g., duplicated centers, impossible edge parity), return exactly: [{"move": "ERROR", "description": "Invalid cube state detected. Please rescan."}]
+    1. If the state looks IMPOSSIBLE (e.g. edge parity, twisted corner, missing color):
+       - Do NOT return an error.
+       - Instead, include a step describing how to PHYSICALLY fix it.
+       - Example: {"move": "FIX", "description": "Flip the Front-Right edge piece physically."}
+       - Then continue solving assuming it is fixed.
     2. Use Standard Notation: R, L, U, D, F, B (Clockwise) and R', L', U', etc. (Counter-Clockwise). Use R2, U2 for 180 turns.
-    3. For 4x4/5x5, use wide moves like Rw, Uw if necessary, or 2R, 2U notation.
+    3. For 4x4/5x5, use wide moves like Rw, Uw if necessary.
     4. Keep descriptions very short (max 5 words).
     5. Do not include markdown code blocks. Just the JSON.
   `;
@@ -61,7 +58,7 @@ export const getSolveSteps = async (cubeState: CubeState, size: CubeSize): Promi
     Scrambled State:
     ${stateDescription}
 
-    Solve it now.
+    Solve it now. Return purely JSON.
   `;
 
   try {
@@ -70,14 +67,14 @@ export const getSolveSteps = async (cubeState: CubeState, size: CubeSize): Promi
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.1, // Low temp for deterministic logic
+        temperature: 0.1, 
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
             properties: {
-              move: { type: Type.STRING, description: "Notation e.g. R, U', F2" },
+              move: { type: Type.STRING, description: "Notation e.g. R, U', F2, FIX" },
               description: { type: Type.STRING, description: "Short explanation" }
             },
             required: ["move", "description"]
@@ -91,7 +88,6 @@ export const getSolveSteps = async (cubeState: CubeState, size: CubeSize): Promi
     
     const steps = JSON.parse(jsonText) as SolveStep[];
     
-    // Validate output
     if (!Array.isArray(steps) || steps.length === 0) {
        throw new Error("Invalid solution format");
     }
@@ -100,8 +96,9 @@ export const getSolveSteps = async (cubeState: CubeState, size: CubeSize): Promi
 
   } catch (error) {
     console.error("Gemini Solve Error:", error);
+    // Return a fallback step so the app doesn't crash, but encourages rescan
     return [
-      { move: "ERROR", description: "Could not calculate solution. Please try rescanning." }
+      { move: "ERROR", description: "AI Calculation Failed. Please rescan." }
     ];
   }
 };

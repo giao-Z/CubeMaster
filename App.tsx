@@ -10,30 +10,26 @@ import Scanner from './components/Scanner';
 import Cube3D from './components/Cube3D';
 import GestureControl from './components/GestureControl';
 import { getSolveSteps } from './services/geminiService';
-import { rotateFace } from './services/cubeLogic';
+import { rotateFace, validateState } from './services/cubeLogic';
 import { AppMode, CubeState, Face, FaceGrid, SolveStep, CubeSize, Language, ControlMode, LearnTopic } from './types';
-import { FACE_ORDER, FACE_NAMES, getInitialCubeState, LEARN_TOPICS_DATA, LANGUAGES, TRANSLATIONS, MOVE_DESCRIPTIONS_DATA, SCAN_NEIGHBORS } from './constants';
+import { FACE_ORDER, getInitialCubeState, LEARN_TOPICS_DATA, LANGUAGES, TRANSLATIONS, MOVE_DESCRIPTIONS_DATA, SCAN_NEIGHBORS } from './constants';
 
 const App: React.FC = () => {
-  // Global State
   const [mode, setMode] = useState<AppMode>(AppMode.HOME);
   const [cubeSize, setCubeSize] = useState<CubeSize>(3);
   const [language, setLanguage] = useState<Language>('en');
   
-  // Solver State
   const [cubeState, setCubeState] = useState<CubeState>(getInitialCubeState(3));
   const [scanIndex, setScanIndex] = useState(0);
   const [solveSteps, setSolveSteps] = useState<SolveStep[]>([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // Free Play State
   const [controlMode, setControlMode] = useState<ControlMode>(ControlMode.TOUCH);
   const [showControlGuide, setShowControlGuide] = useState(false);
   const [showGestureTutorial, setShowGestureTutorial] = useState(false);
   const [pendingMove, setPendingMove] = useState<{face: Face, clockwise: boolean} | null>(null);
 
-  // Learn State
   const [selectedTopic, setSelectedTopic] = useState<LearnTopic | null>(null);
 
   const currentScanFace = FACE_ORDER[scanIndex];
@@ -41,7 +37,6 @@ const App: React.FC = () => {
   const currentMoveDescriptions = MOVE_DESCRIPTIONS_DATA[language];
   const currentLearnTopics = LEARN_TOPICS_DATA[language];
 
-  // Helper object for localized color names map
   const getColorNames = () => ({
     white: t.colorWhite,
     yellow: t.colorYellow,
@@ -51,7 +46,18 @@ const App: React.FC = () => {
     orange: t.colorOrange,
   });
 
-  // Logic
+  const getFaceName = (face: Face) => {
+    switch(face) {
+      case Face.U: return t.faceU;
+      case Face.D: return t.faceD;
+      case Face.F: return t.faceF;
+      case Face.B: return t.faceB;
+      case Face.L: return t.faceL;
+      case Face.R: return t.faceR;
+      default: return face;
+    }
+  };
+
   const initMode = (targetMode: AppMode, size: CubeSize = 3) => {
     setCubeSize(size);
     setCubeState(getInitialCubeState(size));
@@ -77,6 +83,12 @@ const App: React.FC = () => {
   };
 
   const startSolving = async () => {
+    const validationError = validateState(cubeState, cubeSize, getColorNames());
+    if (validationError) {
+      setError(`${t.colorCountError} (${validationError})`);
+      return;
+    }
+
     setMode(AppMode.SOLVING_LOADING);
     try {
       const steps = await getSolveSteps(cubeState, cubeSize);
@@ -97,30 +109,17 @@ const App: React.FC = () => {
   };
 
   const handleFreePlayAction = (face: Face, clockwise: boolean) => {
-    // 2-Step Confirmation Logic
     if (pendingMove && pendingMove.face === face && pendingMove.clockwise === clockwise) {
-      // Confirmed: Execute and Clear
       executeMove(face, clockwise);
       setPendingMove(null);
     } else {
-      // First click: Select/Preview
       setPendingMove({ face, clockwise });
     }
   };
 
   const handleGesture = (direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
-    // Map gestures to logical cube rotations
-    // Swipe Left -> Rotate Entire Cube Left (Simulated by rotating U face Left?) 
-    // Or rotate the U layer? Let's stick to Layer rotations for now as per tutorial.
-    
     let face: Face | null = null;
     let cw = true;
-
-    // Mapping based on tutorial:
-    // Left = U (Top Left / CW)
-    // Right = U' (Top Right / CCW)
-    // Up = R (Right Up / CW)
-    // Down = R' (Right Down / CCW)
 
     if (direction === 'LEFT') { face = Face.U; cw = true; }
     if (direction === 'RIGHT') { face = Face.U; cw = false; }
@@ -133,18 +132,14 @@ const App: React.FC = () => {
     }
   };
 
-  // --- RENDERERS ---
-
   const renderHome = () => (
     <div className="min-h-screen bg-slate-950 text-white overflow-y-auto pb-10">
-      {/* Header */}
       <div className="p-6 pt-10 flex flex-col items-center relative">
         <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-600 mb-2">
           {t.appTitle}
         </h1>
         <p className="text-slate-400 text-sm">{t.subTitle}</p>
         
-        {/* Language Selector */}
         <div className="absolute top-4 right-4 z-50">
           <div className="flex gap-2 bg-slate-900 p-1 rounded-full border border-slate-800">
              {LANGUAGES.map(lang => (
@@ -160,7 +155,6 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Cube Selector */}
       <div className="px-6 mb-8">
         <h3 className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-4">{t.selectOrder}</h3>
         <div className="grid grid-cols-2 gap-4">
@@ -175,7 +169,6 @@ const App: React.FC = () => {
                 }`}
             >
               <div className="w-12 h-12 relative pointer-events-none">
-                 {/* Mini Cube Visual */}
                  <div className={`grid gap-[1px] w-full h-full p-1
                     ${size === 2 ? 'grid-cols-2' : size === 3 ? 'grid-cols-3' : size === 4 ? 'grid-cols-4' : 'grid-cols-5' }`
                  }>
@@ -190,9 +183,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Actions */}
       <div className="px-6 space-y-4">
-        {/* Solver Card */}
         <button 
           onClick={() => initMode(AppMode.SCAN, cubeSize)}
           className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-2xl flex items-center justify-between group shadow-lg shadow-blue-900/20"
@@ -208,7 +199,6 @@ const App: React.FC = () => {
           </div>
         </button>
 
-        {/* Play/Gesture Card */}
         <div className="grid grid-cols-2 gap-4">
           <button 
             onClick={() => initMode(AppMode.PLAY, cubeSize)}
@@ -229,8 +219,6 @@ const App: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* Missing Key Alert */}
       {!process.env.API_KEY && (
          <div className="m-6 p-4 bg-red-900/20 border border-red-500/20 rounded-xl text-center">
             <p className="text-red-400 text-xs font-mono">API_KEY environment variable missing</p>
@@ -244,13 +232,13 @@ const App: React.FC = () => {
       <Scanner 
         currentFace={currentScanFace}
         cubeSize={cubeSize}
-        faceName={FACE_NAMES[currentScanFace]}
+        faceName={getFaceName(currentScanFace)}
         onCapture={handleFaceCaptured}
         neighbors={SCAN_NEIGHBORS[currentScanFace]}
         dirNames={{ top: t.dirTop, bottom: t.dirBottom, left: t.dirLeft, right: t.dirRight }}
         colorNames={getColorNames()}
+        translations={t}
       />
-      {/* Progress Dots */}
       <div className="bg-slate-900 py-6 px-4">
         <div className="flex justify-between items-center max-w-xs mx-auto">
           {FACE_ORDER.map((face, idx) => (
@@ -284,7 +272,7 @@ const App: React.FC = () => {
 
       <div className="flex-1 bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 mb-6 relative">
         <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur px-3 py-1 rounded-lg text-xs text-white">
-          Preview
+          {t.preview}
         </div>
         <Cube3D state={cubeState} size={cubeSize} />
       </div>
@@ -292,7 +280,10 @@ const App: React.FC = () => {
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-200 p-4 rounded-xl mb-4 text-sm flex gap-3 items-start animate-pulse">
           <AlertTriangle size={18} className="shrink-0 mt-0.5" /> 
-          <div>{error}</div>
+          <div>
+            <div className="font-bold mb-1">{t.errorTitle}</div>
+            {error}
+          </div>
         </div>
       )}
 
@@ -321,34 +312,29 @@ const App: React.FC = () => {
       return (
         <div className="h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-green-500/10 to-transparent pointer-events-none" />
-          
           <div className="w-28 h-28 bg-gradient-to-tr from-green-400 to-emerald-600 rounded-full flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(16,185,129,0.4)] animate-pulse-fast">
             <CheckCircle size={56} className="text-white" />
           </div>
-          
           <h2 className="text-4xl font-black text-white mb-4">{t.solved}</h2>
-          
           <button onClick={() => setMode(AppMode.HOME)} className="w-full max-w-sm px-8 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-white font-bold transition">
             {t.backHome}
           </button>
         </div>
       );
+    } else if (!step) {
+      return null;
     }
 
     return (
       <div className="h-screen bg-slate-950 flex flex-col relative">
-        {/* AR Header */}
         <div className="absolute top-0 left-0 right-0 z-20 p-4 flex justify-between items-start pointer-events-none">
           <div className="bg-black/60 backdrop-blur px-4 py-2 rounded-full border border-white/10">
-             <span className="text-green-400 font-mono font-bold">AR MODE</span>
+             <span className="text-green-400 font-mono font-bold">{t.arMode}</span>
           </div>
         </div>
 
-        {/* Visualizer Area */}
         <div className="flex-1 relative bg-gradient-to-b from-slate-900 to-slate-950">
            <Cube3D state={cubeState} size={cubeSize} />
-           
-           {/* AR Overlay Text */}
            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-center">
               <div className="text-[120px] font-black text-white/5 select-none leading-none tracking-tighter">
                 {step.move}
@@ -356,7 +342,6 @@ const App: React.FC = () => {
            </div>
         </div>
 
-        {/* Step Controller */}
         <div className="bg-slate-900 border-t border-slate-800 p-6 pb-10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-10">
           <div className="flex justify-between items-center mb-6">
              <div className="flex items-center gap-2">
@@ -374,7 +359,6 @@ const App: React.FC = () => {
               <h2 className="text-5xl font-black text-white mb-2">{step.move}</h2>
               <p className="text-lg text-slate-400 leading-snug">{step.description}</p>
             </div>
-            {/* Visual Icon for Move Direction (Simplified) */}
             <div className="w-16 h-16 bg-slate-800 rounded-xl flex items-center justify-center border border-slate-700">
                <RotateCcw className={`text-blue-500 ${step.move.includes("'") ? '' : 'scale-x-[-1]'}`} size={32} />
             </div>
@@ -425,7 +409,6 @@ const App: React.FC = () => {
   };
 
   const renderLearn = () => {
-    // Detail View
     if (selectedTopic) {
       return (
         <div className="min-h-screen bg-slate-950 text-white flex flex-col">
@@ -447,7 +430,7 @@ const App: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-6 space-y-8 max-w-2xl mx-auto w-full">
              {(!selectedTopic.sections || selectedTopic.sections.length === 0) ? (
                 <div className="text-center text-slate-500 py-20">
-                   <p>Content coming soon...</p>
+                   <p>{t.comingSoon}</p>
                 </div>
              ) : (
                selectedTopic.sections.map((section, idx) => (
@@ -456,28 +439,23 @@ const App: React.FC = () => {
                     <h3 className="text-lg font-bold text-white mb-3 ml-2">
                        {section.title}
                     </h3>
-                    
-                    {/* Visual Aid Integration */}
                     {section.visual && renderVisualAid(section.visual)}
-
                     <p className="text-slate-300 leading-relaxed mb-4 text-sm whitespace-pre-line">{section.content}</p>
-                    
                     {section.algorithm && (
                        <div className="bg-black/40 p-4 rounded-xl font-mono text-center border border-white/5 shadow-inner">
-                          <span className="text-blue-400 block text-[10px] uppercase tracking-widest mb-1 font-bold">Algorithm</span>
+                          <span className="text-blue-400 block text-[10px] uppercase tracking-widest mb-1 font-bold">{t.algorithm}</span>
                           <span className="text-lg tracking-wide font-bold text-white whitespace-pre-line">{section.algorithm}</span>
                        </div>
                     )}
                  </div>
                ))
              )}
-             <div className="h-20" /> {/* Bottom spacer */}
+             <div className="h-20" /> 
           </div>
         </div>
       );
     }
 
-    // List View
     return (
       <div className="min-h-screen bg-slate-950 text-white p-6">
         <div className="flex items-center gap-4 mb-8">
@@ -525,11 +503,8 @@ const App: React.FC = () => {
             <X size={24} />
           </button>
         </div>
-        
         <p className="text-sm text-slate-400 mb-8">{t.gestureTutorialDesc}</p>
-
         <div className="grid grid-cols-2 gap-6 mb-8">
-          {/* Gesture Item: UP */}
           <div className="flex flex-col items-center gap-2">
             <div className="w-20 h-20 bg-slate-800 rounded-xl flex items-center justify-center relative overflow-hidden">
                <Hand className="text-blue-400 animate-swipe-up" size={32} />
@@ -540,8 +515,6 @@ const App: React.FC = () => {
               R (Right Up)
             </div>
           </div>
-
-          {/* Gesture Item: DOWN */}
           <div className="flex flex-col items-center gap-2">
             <div className="w-20 h-20 bg-slate-800 rounded-xl flex items-center justify-center relative overflow-hidden">
                <Hand className="text-blue-400 animate-swipe-down" size={32} />
@@ -552,8 +525,6 @@ const App: React.FC = () => {
               R' (Right Down)
             </div>
           </div>
-
-          {/* Gesture Item: LEFT */}
           <div className="flex flex-col items-center gap-2">
             <div className="w-20 h-20 bg-slate-800 rounded-xl flex items-center justify-center relative overflow-hidden">
                <Hand className="text-blue-400 animate-swipe-left" size={32} />
@@ -564,8 +535,6 @@ const App: React.FC = () => {
                U (Top Left)
             </div>
           </div>
-
-          {/* Gesture Item: RIGHT */}
           <div className="flex flex-col items-center gap-2">
             <div className="w-20 h-20 bg-slate-800 rounded-xl flex items-center justify-center relative overflow-hidden">
                <Hand className="text-blue-400 animate-swipe-right" size={32} />
@@ -577,7 +546,6 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="bg-blue-500/10 p-4 rounded-xl text-left border border-blue-500/20 mb-6">
           <h4 className="text-blue-300 text-xs font-bold uppercase mb-1 flex items-center gap-2">
             <Info size={12} /> {t.howItWorks}
@@ -586,7 +554,6 @@ const App: React.FC = () => {
             {t.howItWorksDesc}
           </p>
         </div>
-
         <button 
           onClick={() => setShowGestureTutorial(false)}
           className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition"
@@ -599,13 +566,10 @@ const App: React.FC = () => {
 
   const renderPlay = () => (
     <div className="h-screen bg-slate-950 flex flex-col relative overflow-hidden">
-      {/* Play Header */}
       <div className="absolute top-0 w-full flex items-center justify-between p-4 z-20 bg-gradient-to-b from-black/80 to-transparent">
         <button onClick={() => setMode(AppMode.HOME)} className="p-2 bg-slate-800 rounded-full text-white border border-white/10">
           <ChevronLeft size={20} />
         </button>
-        
-        {/* Mode Toggle */}
         <div className="flex bg-slate-900/80 p-1 rounded-full border border-white/10 backdrop-blur shadow-lg">
           <button 
             onClick={() => setControlMode(ControlMode.TOUCH)}
@@ -622,10 +586,8 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Tutorial Overlay */}
       {showGestureTutorial && renderGestureTutorial()}
       
-      {/* Main 3D View */}
       <div className="flex-1 relative">
          <Cube3D 
            state={cubeState} 
@@ -634,12 +596,9 @@ const App: React.FC = () => {
            pendingMove={pendingMove}
          />
          
-         {/* Gesture Controls */}
          {controlMode === ControlMode.GESTURE && (
            <>
               <GestureControl isActive={true} onGesture={handleGesture} />
-              
-              {/* Tutorial Trigger Button for Gesture Mode */}
               <div className="absolute top-20 right-4 z-20">
                 <button 
                   onClick={() => setShowGestureTutorial(true)}
@@ -651,10 +610,8 @@ const App: React.FC = () => {
            </>
          )}
          
-         {/* Touch Controls Overlay */}
          {controlMode === ControlMode.TOUCH && (
            <>
-            {/* Guide Button */}
             <div className="absolute top-20 right-4 z-20">
               <button 
                 onClick={() => setShowControlGuide(!showControlGuide)} 
@@ -664,7 +621,6 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* Guide Overlay - Improved Layout */}
             {showControlGuide && (
               <div className="absolute top-32 right-4 w-64 bg-slate-900/95 backdrop-blur-xl p-4 rounded-xl border border-white/10 z-20 text-xs text-slate-300 shadow-xl animate-fade-in">
                  <h4 className="font-bold text-white mb-3 pb-2 border-b border-white/10 flex justify-between">
@@ -672,14 +628,11 @@ const App: React.FC = () => {
                     <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1 rounded">{t.controlsDesc || 'Notation'}</span>
                  </h4>
                  <div className="space-y-3">
-                   {/* Render Pairs */}
                    {['U', 'D', 'R', 'L', 'F', 'B'].map((baseKey) => {
                      const primeKey = `${baseKey}'`;
                      const desc = currentMoveDescriptions[baseKey];
                      const descPrime = currentMoveDescriptions[primeKey];
-                     
                      if (!desc) return null;
-
                      return (
                         <div key={baseKey} className="flex flex-col gap-1 border-b border-white/5 pb-2 last:border-0">
                            <div className="flex items-center justify-between">
@@ -697,11 +650,8 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {/* Control Buttons */}
             <div className="absolute inset-y-0 right-4 flex flex-col justify-center gap-3 z-10 pointer-events-none">
-               {/* Face Rotations */}
                {Object.keys(Face).map((face) => {
-                 // Helpers to check if pending
                  const isPendingCW = pendingMove?.face === face && pendingMove?.clockwise === true;
                  const isPendingCCW = pendingMove?.face === face && pendingMove?.clockwise === false;
 
@@ -722,73 +672,37 @@ const App: React.FC = () => {
                       className={`w-10 h-10 backdrop-blur rounded border font-bold text-xs shadow-sm transition-all duration-300
                          ${isPendingCCW 
                             ? 'bg-yellow-500 text-black border-yellow-400 scale-110 shadow-[0_0_15px_rgba(234,179,8,0.5)]' 
-                            : 'bg-white/5 hover:bg-white/10 border-white/5 text-white/70'
+                            : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'
                          }`}
                      >
                        {face}'
                      </button>
-                     
-                     {/* Hover Tooltip (Localized) */}
-                     <div className="absolute right-full top-1/2 -translate-y-1/2 mr-3 w-40 px-3 py-2 bg-slate-900/90 backdrop-blur text-white text-[10px] rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition pointer-events-none shadow-xl z-50">
-                        <div className="font-bold mb-0.5 text-blue-300">{face}</div>
-                        <div className="text-white/80">{currentMoveDescriptions[face as string]}</div>
-                        <div className="border-t border-white/10 my-1"></div>
-                         <div className="font-bold mb-0.5 text-red-300">{face}'</div>
-                        <div className="text-white/60">{currentMoveDescriptions[`${face}'`]}</div>
-                     </div>
                   </div>
                  );
                })}
-             </div>
+            </div>
            </>
          )}
-         
-         {/* Instructions Toast */}
-         <div className="absolute top-20 left-1/2 -translate-x-1/2 pointer-events-none z-10 w-full max-w-xs text-center">
-           <div className="inline-block bg-black/60 backdrop-blur px-4 py-2 rounded-full text-xs text-white/90 border border-white/10 shadow-lg">
-              {controlMode === ControlMode.GESTURE ? t.gestureTip : t.touchTip}
-           </div>
-         </div>
-         
-         {/* Reset Bar */}
-         <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-4 px-6 pointer-events-none z-20">
-           <div className="pointer-events-auto bg-slate-900/80 backdrop-blur p-4 rounded-2xl border border-white/10 flex gap-4 shadow-xl">
-              <button 
-                onClick={() => setCubeState(getInitialCubeState(cubeSize))}
-                className="flex flex-col items-center gap-1 text-slate-300 hover:text-white px-4"
-              >
-                <RotateCcw size={20} />
-                <span className="text-[10px]">{t.reset}</span>
-              </button>
-           </div>
-         </div>
       </div>
-    </div>
-  );
-
-  const renderLoading = () => (
-    <div className="h-screen bg-slate-950 flex flex-col items-center justify-center p-8">
-      <div className="relative mb-8">
-         <div className="absolute inset-0 bg-blue-500 blur-xl opacity-20 animate-pulse"></div>
-         <div className="w-20 h-20 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-      <h3 className="text-2xl font-bold text-white mb-2">{t.calculating}</h3>
-      <p className="text-slate-400 text-center max-w-xs leading-relaxed">
-        Gemini AI is analyzing your {cubeSize}x{cubeSize} configuration.
-      </p>
     </div>
   );
 
   return (
-    <>
+    <div className="font-sans select-none">
       {mode === AppMode.HOME && renderHome()}
       {mode === AppMode.SCAN && renderScan()}
       {mode === AppMode.VERIFY && renderVerify()}
-      {mode === AppMode.SOLVING_LOADING && renderLoading()}
+      {mode === AppMode.SOLVING_LOADING && (
+         <div className="h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6" />
+            <h2 className="text-2xl font-bold text-white mb-2">{t.calculating}</h2>
+            <p className="text-slate-400 text-sm">AI is analyzing {cubeSize}x{cubeSize} matrix...</p>
+         </div>
+      )}
       {mode === AppMode.GUIDE && renderGuide()}
-      {mode === AppMode.LEARN && renderLearn()}
       {mode === AppMode.PLAY && renderPlay()}
-    </>
+      {mode === AppMode.LEARN && renderLearn()}
+    </div>
   );
 };
 

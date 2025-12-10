@@ -22,21 +22,14 @@ const CubePiece: React.FC<{
 }> = ({ position, colors, scale, isHighlighted, highlightFace }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   
-  // colors array order: right, left, top, bottom, front, back
-  
   useFrame((state) => {
     if (!meshRef.current) return;
     
-    // Breathing Animation for highlighted pieces
     const t = state.clock.getElapsedTime();
     let breathe = 1;
     
-    // Pop out animation logic
     if (isHighlighted) {
-      // 1. Breathe Scale
       breathe = 1 + Math.sin(t * 10) * 0.05;
-      
-      // 2. Pop Direction
       const popDist = 0.15;
       let popX = 0, popY = 0, popZ = 0;
       
@@ -80,7 +73,6 @@ const CubeModel: React.FC<{
   size: CubeSize, 
   pendingMove?: { face: Face, clockwise: boolean } | null 
 }> = ({ state, size, pendingMove }) => {
-  // Helper to get color code
   const getC = (face: Face, idx: number): string => {
     const faceColors = state[face];
     if (!faceColors || !faceColors[idx]) return '#111';
@@ -92,17 +84,14 @@ const CubeModel: React.FC<{
     const offset = (size - 1) / 2;
     const pieceSize = 0.95; 
 
-    // Iterate through 3D grid
     for (let x = 0; x < size; x++) {
       for (let y = 0; y < size; y++) {
         for (let z = 0; z < size; z++) {
           
-          // Position centering
           const posX = x - offset;
           const posY = y - offset;
           const posZ = z - offset;
 
-          // Determine if this piece is on the outside (visible)
           const isRight = x === size - 1;
           const isLeft = x === 0;
           const isTop = y === size - 1;
@@ -110,10 +99,8 @@ const CubeModel: React.FC<{
           const isFront = z === size - 1;
           const isBack = z === 0;
 
-          // Optimization: Skip internal cubes
           if (!isRight && !isLeft && !isTop && !isBottom && !isFront && !isBack) continue;
           
-          // Check if this piece belongs to the pending move face
           let isHighlighted = false;
           if (pendingMove) {
             if (pendingMove.face === Face.U && isTop) isHighlighted = true;
@@ -124,49 +111,42 @@ const CubeModel: React.FC<{
             if (pendingMove.face === Face.B && isBack) isHighlighted = true;
           }
 
-          // Default Black
           const cubeColors = ['#111', '#111', '#111', '#111', '#111', '#111'];
 
-          // Right (Face R)
           if (isRight) {
              const row = (size - 1) - y;
              const col = (size - 1) - z;
              cubeColors[0] = getC(Face.R, row * size + col);
           }
 
-          // Left (Face L)
           if (isLeft) {
             const row = (size - 1) - y;
             const col = z;
             cubeColors[1] = getC(Face.L, row * size + col);
           }
 
-          // Top (Face U)
           if (isTop) {
             // FIXED MAPPING: Scan Row 0 (Top) is Back (z=0). Scan Row Max (Bottom) is Front (z=max).
-            // So row index should increase with z.
+            // So row index corresponds directly to z index.
             const row = z; 
             const col = x;
             cubeColors[2] = getC(Face.U, row * size + col);
           }
 
-          // Bottom (Face D)
           if (isBottom) {
             // FIXED MAPPING: Scan Row 0 (Top) is Front (z=max). Scan Row Max (Bottom) is Back (z=0).
-            // So row index should decrease as z increases.
+            // So row index is inverted relative to z.
             const row = (size - 1) - z;
             const col = x;
             cubeColors[3] = getC(Face.D, row * size + col);
           }
 
-          // Front (Face F)
           if (isFront) {
             const row = (size - 1) - y;
             const col = x;
             cubeColors[4] = getC(Face.F, row * size + col);
           }
 
-          // Back (Face B)
           if (isBack) {
              const row = (size - 1) - y;
              const col = (size - 1) - x;
@@ -202,7 +182,7 @@ const Cube3D: React.FC<Cube3DProps> = ({ state, size, interactive = true, pendin
           </Center>
         </Stage>
         <OrbitControls 
-          autoRotate={interactive && !pendingMove} // Stop rotation if selecting a move
+          autoRotate={interactive && !pendingMove} 
           autoRotateSpeed={1} 
           enableZoom={true} 
           enablePan={false}

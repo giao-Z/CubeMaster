@@ -36,214 +36,238 @@ export const rotateFace = (currentState: CubeState, face: Face, clockwise: boole
     : rotateGridCCW(currentState[face], size);
 
   // 2. Permute Adjacent Faces
-  // Definitions of indices for adjacent strips for each face
-  
-  // Helper to get row indices
-  const getRowIndices = (rowIndex: number) => {
-    return Array.from({ length: size }, (_, i) => rowIndex * size + i);
-  };
-  
-  // Helper to get col indices
-  const getColIndices = (colIndex: number) => {
-    return Array.from({ length: size }, (_, i) => i * size + colIndex);
-  };
+  // We define "strips" of adjacent faces.
+  // Standard Unfolded Cube Layout Logic:
+  // U (Up): Row 0=Back, Row N-1=Front
+  // D (Down): Row 0=Front, Row N-1=Back
+  // F (Front): Row 0=Up, Row N-1=Down
+  // B (Back): Row 0=Up, Row N-1=Down
+  // L (Left): Col 0=Back, Col N-1=Front
+  // R (Right): Col 0=Front, Col N-1=Back
 
-  let uStrip: number[] = [], dStrip: number[] = [], lStrip: number[] = [], rStrip: number[] = [], fStrip: number[] = [], bStrip: number[] = [];
+  // Helper to get row indices
+  const getRow = (rowIdx: number) => Array.from({ length: size }, (_, i) => rowIdx * size + i);
+  // Helper to get col indices
+  const getCol = (colIdx: number) => Array.from({ length: size }, (_, i) => i * size + colIdx);
+
+  // We need to fetch current values for 4 adjacent strips
+  // And map them to their new positions.
   
+  // Arrays of indices for the 4 adjacent strips involved in the rotation
+  let strips: { face: Face, indices: number[] }[] = [];
+
   switch (face) {
     case Face.F:
-      // U Front Row (0), R Left Col (0), D Front Row (size-1), L Right Col (size-1)
-      uStrip = getRowIndices(0);
-      rStrip = getColIndices(0);
-      dStrip = getRowIndices(size - 1);
-      lStrip = getColIndices(size - 1);
-      
-      if (clockwise) {
-        // U(row-first) -> R(col-first)
-        // R(col-first) -> D(row-last-reversed)
-        // D(row-last) -> L(col-last-reversed) ? No D->L is direct in loop
-        
-        const uVals = uStrip.map(i => currentState[Face.U][i]);
-        const rVals = rStrip.map(i => currentState[Face.R][i]);
-        const dVals = dStrip.map(i => currentState[Face.D][i]);
-        const lVals = lStrip.map(i => currentState[Face.L][i]);
+      // Front Face CW: U(Bottom) -> R(Left) -> D(Top) -> L(Right) -> U(Bottom)
+      // U: Row (size-1) (Left to Right)
+      // R: Col 0 (Top to Bottom)
+      // D: Row 0 (Right to Left) -> Wait, logic below handles index mapping
+      // L: Col (size-1) (Bottom to Top)
 
-        for(let i=0; i<size; i++) {
-           nextState[Face.R][rStrip[i]] = uVals[i]; // U -> R (Direct)
-           nextState[Face.D][dStrip[i]] = rVals[size - 1 - i]; // R -> D (Reversed)
-           nextState[Face.L][lStrip[i]] = dVals[i]; // D -> L (Direct)
-           nextState[Face.U][uStrip[i]] = lVals[size - 1 - i]; // L -> U (Reversed)
-        }
-      } else {
-        // Counter Clockwise
-        const uVals = uStrip.map(i => currentState[Face.U][i]);
-        const rVals = rStrip.map(i => currentState[Face.R][i]);
-        const dVals = dStrip.map(i => currentState[Face.D][i]);
-        const lVals = lStrip.map(i => currentState[Face.L][i]);
-        
-        for(let i=0; i<size; i++) {
-           nextState[Face.L][lStrip[i]] = uVals[size - 1 - i];
-           nextState[Face.D][dStrip[i]] = lVals[i];
-           nextState[Face.R][rStrip[i]] = dVals[size - 1 - i];
-           nextState[Face.U][uStrip[i]] = rVals[i];
-        }
-      }
+      strips = [
+        { face: Face.U, indices: getRow(size - 1) },         // 0: U Bottom Row
+        { face: Face.R, indices: getCol(0) },                // 1: R Left Col
+        { face: Face.D, indices: getRow(0) },                // 2: D Top Row
+        { face: Face.L, indices: getCol(size - 1) },         // 3: L Right Col
+      ];
       break;
 
     case Face.B:
-       // B is opposite of F. 
-       // U Back Row (size-1), L Left Col (0), D Back Row (0), R Right Col (size-1)
-       uStrip = getRowIndices(size - 1);
-       lStrip = getColIndices(0);
-       dStrip = getRowIndices(0);
-       rStrip = getColIndices(size - 1);
-       
-       if (clockwise) {
-         const uVals = uStrip.map(i => currentState[Face.U][i]);
-         const lVals = lStrip.map(i => currentState[Face.L][i]);
-         const dVals = dStrip.map(i => currentState[Face.D][i]);
-         const rVals = rStrip.map(i => currentState[Face.R][i]);
-         
-         for(let i=0; i<size; i++) {
-            nextState[Face.L][lStrip[i]] = uVals[size - 1 - i]; // U -> L (Reversed)
-            nextState[Face.D][dStrip[i]] = lVals[i];            // L -> D (Direct)
-            nextState[Face.R][rStrip[i]] = dVals[size - 1 - i]; // D -> R (Reversed)
-            nextState[Face.U][uStrip[i]] = rVals[i];            // R -> U (Direct)
-         }
-       } else {
-         const uVals = uStrip.map(i => currentState[Face.U][i]);
-         const lVals = lStrip.map(i => currentState[Face.L][i]);
-         const dVals = dStrip.map(i => currentState[Face.D][i]);
-         const rVals = rStrip.map(i => currentState[Face.R][i]);
-
-         for(let i=0; i<size; i++) {
-            nextState[Face.R][rStrip[i]] = uVals[i];
-            nextState[Face.D][dStrip[i]] = rVals[size - 1 - i];
-            nextState[Face.L][lStrip[i]] = dVals[i];
-            nextState[Face.U][uStrip[i]] = lVals[size - 1 - i];
-         }
-       }
-       break;
+      // Back Face CW: U(Top) -> L(Left) -> D(Bottom) -> R(Right) -> U(Top)
+      // U: Row 0 (Right to Left)
+      // L: Col 0 (Top to Bottom)
+      // D: Row (size-1) (Left to Right)
+      // R: Col (size-1) (Bottom to Top)
+      strips = [
+        { face: Face.U, indices: getRow(0) },                // 0: U Top Row
+        { face: Face.L, indices: getCol(0) },                // 1: L Left Col
+        { face: Face.D, indices: getRow(size - 1) },         // 2: D Bottom Row
+        { face: Face.R, indices: getCol(size - 1) },         // 3: R Right Col
+      ];
+      break;
 
     case Face.U:
-      // F Top, R Top, B Top, L Top
-      fStrip = getRowIndices(0);
-      rStrip = getRowIndices(0);
-      bStrip = getRowIndices(0);
-      lStrip = getRowIndices(0);
-      
-      if (clockwise) {
-         // F -> L -> B -> R -> F
-         for(let i=0; i<size; i++) {
-           nextState[Face.L][lStrip[i]] = currentState[Face.F][fStrip[i]];
-           nextState[Face.B][bStrip[i]] = currentState[Face.L][lStrip[i]];
-           nextState[Face.R][rStrip[i]] = currentState[Face.B][bStrip[i]];
-           nextState[Face.F][fStrip[i]] = currentState[Face.R][rStrip[i]];
-         }
-      } else {
-         for(let i=0; i<size; i++) {
-           nextState[Face.R][rStrip[i]] = currentState[Face.F][fStrip[i]];
-           nextState[Face.B][bStrip[i]] = currentState[Face.R][rStrip[i]];
-           nextState[Face.L][lStrip[i]] = currentState[Face.B][bStrip[i]];
-           nextState[Face.F][fStrip[i]] = currentState[Face.L][lStrip[i]];
-         }
-      }
+      // Up Face CW: F(Top) -> L(Top) -> B(Top) -> R(Top) -> F(Top)
+      // Standard: F -> L -> B -> R -> F
+      strips = [
+        { face: Face.F, indices: getRow(0) },
+        { face: Face.L, indices: getRow(0) },
+        { face: Face.B, indices: getRow(0) },
+        { face: Face.R, indices: getRow(0) },
+      ];
       break;
 
     case Face.D:
-      // F Bottom, R Bottom, B Bottom, L Bottom
-      fStrip = getRowIndices(size - 1);
-      rStrip = getRowIndices(size - 1);
-      bStrip = getRowIndices(size - 1);
-      lStrip = getRowIndices(size - 1);
-
-      if (clockwise) {
-         // F -> R -> B -> L -> F
-         for(let i=0; i<size; i++) {
-           nextState[Face.R][rStrip[i]] = currentState[Face.F][fStrip[i]];
-           nextState[Face.B][bStrip[i]] = currentState[Face.R][rStrip[i]];
-           nextState[Face.L][lStrip[i]] = currentState[Face.B][bStrip[i]];
-           nextState[Face.F][fStrip[i]] = currentState[Face.L][lStrip[i]];
-         }
-      } else {
-         for(let i=0; i<size; i++) {
-           nextState[Face.L][lStrip[i]] = currentState[Face.F][fStrip[i]];
-           nextState[Face.B][bStrip[i]] = currentState[Face.L][lStrip[i]];
-           nextState[Face.R][rStrip[i]] = currentState[Face.B][bStrip[i]];
-           nextState[Face.F][fStrip[i]] = currentState[Face.R][rStrip[i]];
-         }
-      }
+      // Down Face CW: F(Bottom) -> R(Bottom) -> B(Bottom) -> L(Bottom) -> F(Bottom)
+      // Standard: F -> R -> B -> L -> F
+      strips = [
+        { face: Face.F, indices: getRow(size - 1) },
+        { face: Face.R, indices: getRow(size - 1) },
+        { face: Face.B, indices: getRow(size - 1) },
+        { face: Face.L, indices: getRow(size - 1) },
+      ];
       break;
-      
+
     case Face.L:
-      // U Left Col, F Left Col, D Left Col, B Right Col (inverted)
-      uStrip = getColIndices(0);
-      fStrip = getColIndices(0);
-      dStrip = getColIndices(0);
-      bStrip = getColIndices(size - 1); 
-      
-      if (clockwise) {
-        // U -> F -> D -> B -> U
-        const uVals = uStrip.map(i => currentState[Face.U][i]);
-        const fVals = fStrip.map(i => currentState[Face.F][i]);
-        const dVals = dStrip.map(i => currentState[Face.D][i]);
-        const bVals = bStrip.map(i => currentState[Face.B][i]);
-        
-        for(let i=0; i<size; i++) {
-          nextState[Face.F][fStrip[i]] = uVals[i];
-          nextState[Face.D][dStrip[i]] = fVals[i];
-          nextState[Face.B][bStrip[size - 1 - i]] = dVals[i]; // Invert B
-          nextState[Face.U][uStrip[i]] = bVals[size - 1 - i]; // Invert back
-        }
-      } else {
-        const uVals = uStrip.map(i => currentState[Face.U][i]);
-        const fVals = fStrip.map(i => currentState[Face.F][i]);
-        const dVals = dStrip.map(i => currentState[Face.D][i]);
-        const bVals = bStrip.map(i => currentState[Face.B][i]);
-        
-        for(let i=0; i<size; i++) {
-          nextState[Face.B][bStrip[size - 1 - i]] = uVals[i];
-          nextState[Face.D][dStrip[i]] = bVals[size - 1 - i];
-          nextState[Face.F][fStrip[i]] = dVals[i];
-          nextState[Face.U][uStrip[i]] = fVals[i];
-        }
-      }
+      // Left Face CW: U(Left) -> F(Left) -> D(Left) -> B(Right) -> U(Left)
+      // U: Col 0
+      // F: Col 0
+      // D: Col 0
+      // B: Col (size-1) (Note: B orientation is inverted vertically relative to F, so Col (size-1) is the one touching L)
+      strips = [
+        { face: Face.U, indices: getCol(0) },
+        { face: Face.F, indices: getCol(0) },
+        { face: Face.D, indices: getCol(0) },
+        { face: Face.B, indices: getCol(size - 1) },
+      ];
       break;
 
     case Face.R:
-      // U Right Col, B Left Col (inv), D Right Col, F Right Col
-      uStrip = getColIndices(size - 1);
-      bStrip = getColIndices(0);
-      dStrip = getColIndices(size - 1);
-      fStrip = getColIndices(size - 1);
-      
-      if (clockwise) {
-        // U -> B -> D -> F -> U
-        const uVals = uStrip.map(i => currentState[Face.U][i]);
-        const bVals = bStrip.map(i => currentState[Face.B][i]);
-        const dVals = dStrip.map(i => currentState[Face.D][i]);
-        const fVals = fStrip.map(i => currentState[Face.F][i]);
-        
-        for(let i=0; i<size; i++) {
-          nextState[Face.B][bStrip[size - 1 - i]] = uVals[i];
-          nextState[Face.D][dStrip[i]] = bVals[size - 1 - i];
-          nextState[Face.F][fStrip[i]] = dVals[i];
-          nextState[Face.U][uStrip[i]] = fVals[i];
-        }
-      } else {
-        const uVals = uStrip.map(i => currentState[Face.U][i]);
-        const bVals = bStrip.map(i => currentState[Face.B][i]);
-        const dVals = dStrip.map(i => currentState[Face.D][i]);
-        const fVals = fStrip.map(i => currentState[Face.F][i]);
-        
-        for(let i=0; i<size; i++) {
-          nextState[Face.F][fStrip[i]] = uVals[i];
-          nextState[Face.D][dStrip[i]] = fVals[i];
-          nextState[Face.B][bStrip[size - 1 - i]] = dVals[i];
-          nextState[Face.U][uStrip[i]] = bVals[size - 1 - i];
-        }
-      }
+      // Right Face CW: U(Right) -> B(Left) -> D(Right) -> F(Right) -> U(Right)
+      // U: Col (size-1)
+      // B: Col 0 (Touching R)
+      // D: Col (size-1)
+      // F: Col (size-1)
+      strips = [
+        { face: Face.U, indices: getCol(size - 1) },
+        { face: Face.B, indices: getCol(0) },
+        { face: Face.D, indices: getCol(size - 1) },
+        { face: Face.F, indices: getCol(size - 1) },
+      ];
       break;
+  }
+
+  // extract values
+  const val0 = strips[0].indices.map(i => currentState[strips[0].face][i]);
+  const val1 = strips[1].indices.map(i => currentState[strips[1].face][i]);
+  const val2 = strips[2].indices.map(i => currentState[strips[2].face][i]);
+  const val3 = strips[3].indices.map(i => currentState[strips[3].face][i]);
+
+  /*
+    MAPPING LOGIC (The Hard Part):
+    We need to handle the orientation of movement.
+    Example F CW: 
+    - U Row (L->R) moves to R Col (T->B). (Direct order)
+    - R Col (T->B) moves to D Row (R->L). (Reverse order)
+    - D Row (R->L) moves to L Col (B->T). (Direct relative to previous, or Reverse relative to L array?) 
+      - D Row indices are 0..N. Index 0 is LEFT (near L). Index N is RIGHT (near R).
+      - R Col moves to D. R-Top maps to D-Right. R-Bottom maps to D-Left.
+        So R[i] -> D[size-1-i].
+      - D Row moves to L. D-Right maps to L-Top. D-Left maps to L-Bottom.
+        So D[i] -> L[i].
+      - L Col moves to U. L-Top maps to U-Right. L-Bottom maps to U-Left.
+        So L[i] -> U[size-1-i].
+  */
+
+  if (face === Face.F) {
+    if (clockwise) {
+      // U(i) -> R(i)
+      // R(i) -> D(size-1-i)
+      // D(i) -> L(i)
+      // L(i) -> U(size-1-i)
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val0[i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val1[size - 1 - i]);
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val2[i]);
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val3[size - 1 - i]);
+    } else {
+      // CCW is reverse of CW
+      // U <- R <- D <- L <- U
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val1[i]);
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val2[size - 1 - i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val3[i]);
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val0[size - 1 - i]);
+    }
+  } 
+  else if (face === Face.B) {
+    // B CW: U(Top) -> L(Left) -> D(Bottom) -> R(Right)
+    // U(R->L) -> L(T->B)? 
+    // U Top indices are 0..N. 0 is Left, N is Right.
+    // U(i) maps to L(size-1-i). U-Right(N) maps to L-Top(0). U-Left(0) maps to L-Bottom(N).
+    // L(i) maps to D(i). L-Top(0) maps to D-Right(N). Wait.
+    // L-Top maps to D-Left? No.
+    // B rotation. Top-Right of B (near L-Top) moves to Bottom-Right of B (near D-Back).
+    // Sticker on L-Top moves to D-Back-Left?
+    // Let's trust standard cycles.
+    
+    if (clockwise) {
+      // U -> L (reverse)
+      // L -> D (direct)
+      // D -> R (reverse)
+      // R -> U (direct)
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val0[size - 1 - i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val1[i]);
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val2[size - 1 - i]);
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val3[i]);
+    } else {
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val1[size - 1 - i]);
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val0[i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val3[size - 1 - i]);
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val2[i]);
+    }
+  }
+  else if (face === Face.U) {
+    if (clockwise) {
+      // F -> L -> B -> R -> F (All direct)
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val0[i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val1[i]);
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val2[i]);
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val3[i]);
+    } else {
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val0[i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val3[i]);
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val2[i]);
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val1[i]);
+    }
+  }
+  else if (face === Face.D) {
+    if (clockwise) {
+      // F -> R -> B -> L -> F (All direct)
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val0[i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val1[i]);
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val2[i]);
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val3[i]);
+    } else {
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val0[i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val3[i]);
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val2[i]);
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val1[i]);
+    }
+  }
+  else if (face === Face.L) {
+    // L CW: U(Left) -> F(Left) -> D(Left) -> B(Right) -> U(Left)
+    // U -> F (Direct)
+    // F -> D (Direct)
+    // D -> B (Reverse: D-Bottom maps to B-Top)
+    // B -> U (Reverse: B-Top maps to U-Top)
+    if (clockwise) {
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val0[i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val1[i]);
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val2[size - 1 - i]);
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val3[size - 1 - i]);
+    } else {
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val0[size - 1 - i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val3[size - 1 - i]);
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val2[i]);
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val1[i]);
+    }
+  }
+  else if (face === Face.R) {
+    // R CW: U(Right) -> B(Left) -> D(Right) -> F(Right)
+    // U -> B (Reverse)
+    // B -> D (Reverse)
+    // D -> F (Direct)
+    // F -> U (Direct)
+    if (clockwise) {
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val0[size - 1 - i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val1[size - 1 - i]);
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val2[i]);
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val3[i]);
+    } else {
+      strips[3].indices.forEach((idx, i) => nextState[strips[3].face][idx] = val0[i]);
+      strips[2].indices.forEach((idx, i) => nextState[strips[2].face][idx] = val3[i]);
+      strips[1].indices.forEach((idx, i) => nextState[strips[1].face][idx] = val2[size - 1 - i]);
+      strips[0].indices.forEach((idx, i) => nextState[strips[0].face][idx] = val1[size - 1 - i]);
+    }
   }
 
   return nextState;

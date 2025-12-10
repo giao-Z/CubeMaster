@@ -50,6 +50,13 @@ const Scanner: React.FC<ScannerProps> = ({ currentFace, cubeSize, onCapture, fac
     };
   }, []);
 
+  // Re-attach stream when video element reappears (e.g. after retake)
+  useEffect(() => {
+    if (videoRef.current && stream && !capturedImage) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [capturedImage, stream]);
+
   const analyzeColors = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     // Simulation: Pre-fill with "likely" colors (just center color for now for UX simplicity)
     // In a real app with OpenCV, we would slice the image into (size x size) grids and avg color.

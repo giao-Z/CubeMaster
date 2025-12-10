@@ -99,8 +99,18 @@ const App: React.FC = () => {
   };
 
   const handleGesture = (direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
+    // Map gestures to logical cube rotations
+    // Swipe Left -> Rotate Entire Cube Left (Simulated by rotating U face Left?) 
+    // Or rotate the U layer? Let's stick to Layer rotations for now as per tutorial.
+    
     let face: Face | null = null;
     let cw = true;
+
+    // Mapping based on tutorial:
+    // Left = U (Top Left / CW)
+    // Right = U' (Top Right / CCW)
+    // Up = R (Right Up / CW)
+    // Down = R' (Right Down / CCW)
 
     if (direction === 'LEFT') { face = Face.U; cw = true; }
     if (direction === 'RIGHT') { face = Face.U; cw = false; }

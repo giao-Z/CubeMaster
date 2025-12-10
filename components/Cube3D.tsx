@@ -5,30 +5,6 @@ import { CubeState, Face, CubeSize } from '../types';
 import { COLOR_HEX } from '../constants';
 import * as THREE from 'three';
 
-// Add type definitions for React Three Fiber elements
-// Augment both global and module-scoped JSX namespaces to ensure compatibility
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      mesh: any;
-      boxGeometry: any;
-      meshStandardMaterial: any;
-      group: any;
-    }
-  }
-}
-
-declare module 'react' {
-  namespace JSX {
-    interface IntrinsicElements {
-      mesh: any;
-      boxGeometry: any;
-      meshStandardMaterial: any;
-      group: any;
-    }
-  }
-}
-
 interface Cube3DProps {
   state: CubeState;
   size: CubeSize;

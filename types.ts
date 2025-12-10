@@ -55,3 +55,11 @@ export interface LearnTopic {
   duration: string;
   sections: LearnSection[];
 }
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
+  }
+}

@@ -22,18 +22,23 @@ export const getSolveSteps = async (cubeState: CubeState, size: CubeSize): Promi
   // Dynamic instruction based on size
   let algoPreference = "";
   if (size === 2) algoPreference = "Use Ortega or CLL methods.";
-  else if (size === 3) algoPreference = "Use CFOP or Layer-by-Layer.";
+  else if (size === 3) algoPreference = "Use a Layer-by-Layer or CFOP approach (Cross, F2L, OLL, PLL).";
   else algoPreference = "Use Reduction method (reduce centers, then edges, then 3x3 stage). Mention parity algorithms if needed.";
 
   const systemInstruction = `
     You are an expert Rubik's Cube solver algorithm.
     The user has a ${size}x${size} Rubik's cube.
     ${algoPreference}
-    I will provide the color state of the 6 faces.
-    Calculate the solution steps.
-    Use standard Singmaster notation (e.g., R, U, F, Rw for wide moves on 4x4+).
-    For each step, provide a VERY short explanation (max 8 words).
-    If impossible state, return one step with move="ERROR" and description="Invalid State".
+    
+    INPUT: The color state of the 6 faces.
+    TASK: Calculate the step-by-step solution.
+    
+    CRITICAL OUTPUT RULES:
+    1. Use standard Singmaster notation: R, L, U, D, F, B (Clockwise) and R', L', U', etc. (Counter-clockwise), and R2, U2 (180 degrees).
+    2. For N>3, use standard wide move notation if needed (e.g., Rw, 2R).
+    3. Verify the state validity. If impossible (e.g., 5 centers of one color), return 1 step with move="ERROR" and description="Invalid State".
+    4. Provide a SHORT description for each step (e.g., "White Cross", "Insert Edge", "OLL Parity").
+    5. Return ONLY valid JSON.
   `;
 
   const prompt = `
